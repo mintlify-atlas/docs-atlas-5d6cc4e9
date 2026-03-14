@@ -1,0 +1,407 @@
+---
+title: 'Changelog'
+description: 'Version history and recent updates'
+icon: 'clock-rotate-left'
+---
+
+## Latest Updates
+
+Duix Avatar is under active development with frequent updates. Check [GitHub Releases](https://github.com/duixcom/Duix.Avatar/releases) for the latest version.
+
+---
+
+## Recent Releases
+
+### NVIDIA 50 Series GPU Support
+
+<Info>
+  **Release Date:** Recent
+  
+  **Status:** Tested and verified
+</Info>
+
+**What's New:**
+
+<AccordionGroup>
+  <Accordion title="NVIDIA 50 Series Compatibility">
+    - ✅ **Tested on RTX 5090** GPU
+    - Uses official preview version of PyTorch
+    - CUDA 12.8 support
+    - Also works with 30/40 series GPUs
+    
+    **Benefits:**
+    - Native support for latest GPU architecture
+    - Improved performance on newer cards
+    - Future-proof deployment option
+    
+    **Installation:**
+    See the [Server Deployment Solution for NVIDIA 50 Series Graphics Cards](https://github.com/duixcom/Duix.Avatar#server-deployment-solution-for-nvidia-50-series-graphics-cards)
+  </Accordion>
+</AccordionGroup>
+
+**Supported GPUs:**
+- NVIDIA 50 series (5090, etc.)
+- NVIDIA 40 series (4090, 4080, 4070, etc.)
+- NVIDIA 30 series (3090, 3080, 3070, etc.)
+- Older NVIDIA GPUs with CUDA support
+
+---
+
+### Ubuntu 22.04 Official Release
+
+<Info>
+  **Release Date:** Recent
+  
+  **Platform:** Linux (Ubuntu 22.04)
+</Info>
+
+**What's New:**
+
+<AccordionGroup>
+  <Accordion title="Official Ubuntu Support">
+    **Platform Compatibility:**
+    - ✅ Ubuntu 22.04 Desktop (kernel 6.8.0-52-generic)
+    - Full adaptation and verification completed
+    - AppImage distribution for easy installation
+    
+    **Installation:**
+    - Download `Duix.Avatar-x.x.x.AppImage` from [GitHub Releases](https://github.com/duixcom/Duix.Avatar/releases)
+    - Make executable: `chmod +x Duix.Avatar-x.x.x.AppImage`
+    - Run: `./Duix.Avatar-x.x.x.AppImage`
+    - For root users: `./Duix.Avatar-x.x.x.AppImage --no-sandbox`
+    
+    <Warning>
+      Other Linux distributions have not been tested yet. Ubuntu 22.04 is the officially supported platform.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Internationalization (i18n)">
+    **English Language Support:**
+    - Client interface now available in English
+    - Multi-language UI foundation established
+    - Supports global user base
+    
+    **Previously Supported Languages:**
+    - Chinese (original)
+    
+    **Future Plans:**
+    - Additional UI languages planned
+    - Community translations welcome
+  </Accordion>
+
+  <Accordion title="Bug Fixes">
+    **Resolved Issues:**
+    
+    - **Issue #304:** Fixed
+      - Details available on [GitHub Issue #304](https://github.com/duixcom/Duix.Avatar/issues/304)
+    
+    - **Issue #292:** Fixed
+      - Details available on [GitHub Issue #292](https://github.com/duixcom/Duix.Avatar/issues/292)
+    
+    Multiple community-reported issues resolved in this release.
+  </Accordion>
+</AccordionGroup>
+
+**Documentation:**
+- [Ubuntu 22.04 Installation Guide](https://github.com/duixcom/Duix.Avatar#ubuntu-2204-installation)
+- Full deployment instructions in README
+
+---
+
+## Key Features (Current Version)
+
+The current version of Duix Avatar includes:
+
+### Core Capabilities
+
+<CardGroup cols={2}>
+  <Card title="AI Avatar Cloning" icon="user">
+    - Precise appearance replication
+    - High-fidelity facial feature capture
+    - Realistic virtual model generation
+    - Multiple avatar support
+  </Card>
+  
+  <Card title="Voice Cloning" icon="microphone">
+    - Advanced voice synthesis
+    - Captures subtle voice characteristics
+    - Multiple voice parameter settings
+    - Natural speech generation
+  </Card>
+  
+  <Card title="Video Synthesis" icon="video">
+    - Text-to-video generation
+    - Voice-driven animation
+    - Natural lip-sync technology
+    - Audio-video synchronization
+  </Card>
+  
+  <Card title="Multi-Language TTS" icon="language">
+    - 8 supported languages
+    - English, Japanese, Korean, Chinese
+    - French, German, Arabic, Spanish
+    - Natural pronunciation
+  </Card>
+</CardGroup>
+
+### Platform Support
+
+<Tabs>
+  <Tab title="Windows">
+    **Supported Versions:**
+    - Windows 10 (19042.1526 or higher)
+    - Windows 11
+    
+    **Installation:**
+    - Download `Duix.Avatar-x.x.x-setup.exe`
+    - Double-click to install
+    - Requires NVIDIA GPU
+    
+    **Requirements:**
+    - C Drive: 100GB+ free space
+    - D Drive: 30GB+ free space
+  </Tab>
+  
+  <Tab title="Ubuntu Linux">
+    **Supported Versions:**
+    - Ubuntu 22.04 Desktop (officially tested)
+    - Kernel 6.8.0-52-generic
+    
+    **Installation:**
+    - Download `Duix.Avatar-x.x.x.AppImage`
+    - No installation required
+    - Run directly from downloads
+    
+    **Requirements:**
+    - 100GB+ free space
+    - NVIDIA GPU with drivers
+  </Tab>
+</Tabs>
+
+### Docker Services
+
+<AccordionGroup>
+  <Accordion title="Full Version (3 Services)">
+    Complete offline operation:
+    
+    1. **Duix.Avatar-asr** - Automatic Speech Recognition
+       - Based on fun-asr technology
+       - Speech-to-text conversion
+       - Audio analysis
+    
+    2. **Duix.Avatar-tts** - Text-to-Speech
+       - Based on fish-speech-ziming
+       - Voice cloning
+       - Multi-language synthesis
+    
+    3. **Duix.Avatar-gen-video** - Video Generation
+       - Avatar animation
+       - Lip-sync processing
+       - Video synthesis
+    
+    **Download Size:** ~70GB
+    **Installation:** `docker-compose up -d`
+  </Accordion>
+
+  <Accordion title="Lite Version (1 Service)">
+    Streamlined deployment:
+    
+    - **Duix.Avatar-gen-video** only
+    - Requires external TTS/ASR
+    - Smaller download size
+    - Lower resource requirements
+    
+    **Installation:** `docker-compose -f docker-compose-lite.yml up -d`
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Technology Acknowledgments
+
+Duix Avatar is built on top of excellent open-source technologies:
+
+<CardGroup cols={2}>
+  <Card title="ASR Engine" icon="wave-pulse">
+    **Based on:** fun-asr
+    
+    Automatic Speech Recognition for audio processing and transcription.
+  </Card>
+  
+  <Card title="TTS Engine" icon="volume-high">
+    **Based on:** fish-speech-ziming
+    
+    Text-to-Speech and voice cloning technology.
+  </Card>
+</CardGroup>
+
+We thank the open-source community for these foundational technologies.
+
+---
+
+## Platform Evolution
+
+### Windows Support
+
+<Steps>
+  <Step title="Initial Release">
+    - Windows 10 support (19042.1526+)
+    - Full offline operation
+    - Docker-based deployment
+  </Step>
+  
+  <Step title="Enhanced Compatibility">
+    - Windows 11 support
+    - WSL 2 integration
+    - Improved GPU support
+  </Step>
+  
+  <Step title="NVIDIA 50 Series">
+    - Latest GPU support
+    - CUDA 12.8 compatibility
+    - Performance improvements
+  </Step>
+</Steps>
+
+### Linux Support
+
+<Steps>
+  <Step title="Ubuntu 22.04">
+    - Official Linux release
+    - AppImage distribution
+    - Native GPU support
+  </Step>
+  
+  <Step title="Internationalization">
+    - English UI added
+    - Multi-language foundation
+    - Global accessibility
+  </Step>
+  
+  <Step title="Bug Fixes">
+    - Community-reported issues resolved
+    - Stability improvements
+    - Performance optimizations
+  </Step>
+</Steps>
+
+---
+
+## Community Growth
+
+### GitHub Activity
+
+Duix Avatar has an active and growing community:
+
+- **Issues:** Actively tracked and resolved daily
+- **Pull Requests:** Community contributions welcome
+- **Discussions:** Growing knowledge base
+- **Stars:** Visit [Star History](https://www.star-history.com/#duixcom/Duix.Avatar&Date)
+
+<Info>
+  The project is newly open-sourced and the community is very active with frequent updates.
+</Info>
+
+### Open Source Mission
+
+**Our Commitment:**
+
+Seven years ago, Duix.com pioneered AI-generated digital humans, reducing production costs from hundreds of thousands of dollars to just $1,000. Now we're taking the next step:
+
+<CardGroup cols={2}>
+  <Card title="Democratize Technology" icon="users">
+    Making AI avatar creation accessible to everyone, not just enterprises.
+  </Card>
+  
+  <Card title="Break Barriers" icon="unlock">
+    Eliminating cost and technical barriers to digital human technology.
+  </Card>
+  
+  <Card title="Empower Creators" icon="wand-magic-sparkles">
+    Enabling anyone with a computer to create AI avatars at zero cost.
+  </Card>
+  
+  <Card title="Community First" icon="heart">
+    Building together with contributors worldwide.
+  </Card>
+</CardGroup>
+
+---
+
+## Roadmap
+
+While specific future features aren't publicly announced, the project continues to evolve:
+
+**Areas of Development:**
+- Expanded platform support
+- Enhanced model quality
+- Performance optimizations
+- Community-requested features
+- Additional language support
+
+<Info>
+  Check [GitHub Issues](https://github.com/duixcom/Duix.Avatar/issues) for feature requests and planned improvements.
+</Info>
+
+---
+
+## API Services
+
+In addition to the open-source local deployment, Duix.com offers commercial API services:
+
+### Comparison
+
+| Feature | Open Source | API Service |
+|---------|-------------|-------------|
+| **Deployment** | Local (self-hosted) | Cloud-based |
+| **Cost** | Free (hardware required) | Pay-per-use |
+| **Quality** | Good | Enhanced |
+| **Support** | Community | Enterprise SLA |
+| **Updates** | Community-driven | Latest models first |
+| **Customization** | Full source access | API-limited |
+| **Hardware** | GPU required | No hardware needed |
+| **Privacy** | Fully offline | Cloud-based |
+
+**Learn More:**
+- Visit [duix.com](https://duix.com) for API services
+- Read [API Documentation](https://docs.duix.com/api-reference/api/Introduction)
+- Chat with Duix Avatar digital humans online
+
+---
+
+## Stay Updated
+
+Keep up with the latest Duix Avatar developments:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Releases" icon="github" href="https://github.com/duixcom/Duix.Avatar/releases">
+    Download latest versions and read release notes
+  </Card>
+  
+  <Card title="GitHub Issues" icon="list-check" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Track bug fixes and feature development
+  </Card>
+  
+  <Card title="Official Website" icon="globe" href="https://duix.com">
+    Company news and commercial services
+  </Card>
+  
+  <Card title="Star History" icon="star" href="https://www.star-history.com/#duixcom/Duix.Avatar&Date">
+    Watch project growth over time
+  </Card>
+</CardGroup>
+
+---
+
+## Version History
+
+<Info>
+  For detailed version-by-version changes, visit the [GitHub Releases page](https://github.com/duixcom/Duix.Avatar/releases).
+</Info>
+
+The project releases updates frequently. Always check for the latest version to benefit from:
+- Bug fixes
+- Performance improvements
+- New features
+- Security updates
+- Compatibility enhancements

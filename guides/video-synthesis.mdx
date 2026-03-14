@@ -1,0 +1,323 @@
+---
+title: Video Synthesis
+description: Generate AI-powered videos with avatars and custom voices
+---
+
+## Overview
+
+Video synthesis in Duix combines avatar models with voice cloning to create realistic AI-generated videos. The process involves audio generation, video rendering, and status tracking.
+
+## Synthesis Workflow
+
+The video synthesis process is managed through two main functions: `makeVideo()` and `synthesisVideo()`.
+
+<Steps>
+  <Step title="Save Video Project">
+    First, create or update a video project with your content:
+    
+    **IPC Handler:** `video/save`
+    
+    Required parameters:
+    - `model_id`: Avatar model to use
+    - `name`: Video project name
+    - `text_content`: Script text (if using voice synthesis)
+    - `voice_id`: Voice model ID (optional, defaults to avatar's voice)
+    - `audio_path`: Custom audio file (optional, alternative to text synthesis)
+    
+    **Service Method:** `saveVideo()` in `src/main/service/video.js:63`
+  </Step>
+
+  <Step title="Queue Video for Synthesis">
+    Add the video to the synthesis queue:
+    
+    ```javascript
+    makeVideo(videoId)
+    ```
+    
+    This updates the video status to `waiting` and adds it to the processing queue.
+    
+    **IPC Handler:** `video/make`
+    
+    **Service Method:** `makeVideo()` in `src/main/service/video.js:81`
+  </Step>
+
+  <Step title="Audio Generation">
+    The `synthesisVideo()` function generates audio in one of two ways:
+    
+    <Accordion title="Option 1: Voice Synthesis (from text)">
+      If no custom audio is provided, the system:
+      1. Retrieves the voice model (from video settings or avatar default)
+      2. Calls `makeAudio4Video()` to generate speech from text
+      3. Saves the generated WAV file
+      
+      **Code:** `src/main/service/video.js:108-117`
+    </Accordion>
+    
+    <Accordion title="Option 2: Custom Audio">
+      If `audio_path` is provided:
+      1. Copies the custom audio file to the production directory
+      2. Uses this audio directly in video synthesis
+      
+      **Code:** `src/main/service/video.js:104-107`
+    </Accordion>
+  </Step>
+
+  <Step title="Submit to Face2Face API">
+    The system submits a synthesis request to the Face2Face API:
+    
+    ```javascript
+    await makeVideoApi({
+      audio_url: audioPath,
+      video_url: model.video_path,
+      code: uuid,
+      chaofen: 0,
+      watermark_switch: 0,
+      pn: 1
+    })
+    ```
+    
+    **API Endpoint:** `/submit`
+    
+    **Service Method:** `makeVideoByF2F()` in `src/main/service/video.js:259`
+  </Step>
+
+  <Step title="Track Progress">
+    The `loopPending()` function continuously monitors synthesis progress every 2 seconds.
+    
+    Status codes:
+    - `10000`: Request successful, synthesis in progress
+    - `9999`, `10002`, `10003`: Error occurred
+    
+    **Service Method:** `loopPending()` in `src/main/service/video.js:162`
+  </Step>
+
+  <Step title="Complete Synthesis">
+    When synthesis completes:
+    1. Video duration is calculated using FFmpeg
+    2. Video status updates to `success`
+    3. File path is saved to the database
+    
+    **Code:** `src/main/service/video.js:185-202`
+  </Step>
+</Steps>
+
+## Video Status Management
+
+Videos progress through several status states:
+
+<CardGroup cols={3}>
+  <Card title="draft" icon="file-pen">
+    Initial state when project is created
+  </Card>
+  
+  <Card title="waiting" icon="clock">
+    Queued for synthesis, waiting for processing
+  </Card>
+  
+  <Card title="pending" icon="spinner">
+    Currently being synthesized
+  </Card>
+  
+  <Card title="success" icon="check">
+    Video synthesis completed successfully
+  </Card>
+  
+  <Card title="failed" icon="xmark">
+    Synthesis failed with error
+  </Card>
+</CardGroup>
+
+## Progress Tracking
+
+For videos in `waiting` status, progress is displayed as queue position:
+
+```javascript
+progress = `${position} / ${totalWaiting}`
+// Example: "3 / 10" means 3rd in queue out of 10 waiting videos
+```
+
+For videos in `pending` status, progress is provided by the Face2Face API:
+
+```javascript
+statusRes.data.progress // Percentage or descriptive progress
+```
+
+## Face2Face API Integration
+
+### Synthesis Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `audio_url` | string | Path to audio file (relative to TTS directory) |
+| `video_url` | string | Path to avatar video (relative to model directory) |
+| `code` | string | Unique UUID for tracking this synthesis job |
+| `chaofen` | number | Super resolution (0 = disabled, 1 = enabled) |
+| `watermark_switch` | number | Watermark overlay (0 = disabled, 1 = enabled) |
+| `pn` | number | Processing priority (1 = normal) |
+
+### Status Response
+
+The `/query` endpoint returns:
+
+```javascript
+{
+  code: 10000,
+  data: {
+    status: 1,        // 1=processing, 2=success, 3=failed
+    progress: "50%",  // Progress indicator
+    msg: "Processing...",
+    result: "path/to/video.mp4"  // Available when status=2
+  }
+}
+```
+
+## Queue Management
+
+The synthesis queue processes one video at a time:
+
+<Info>
+  The `synthesisNext()` function automatically picks the next `waiting` video and starts synthesis when the current video completes.
+</Info>
+
+This ensures:
+- Sequential processing to prevent API overload
+- Fair queue ordering (FIFO - first in, first out)
+- Automatic progression through the queue
+
+**Service Method:** `synthesisNext()` in `src/main/service/video.js:218`
+
+## IPC Handlers
+
+The video service exposes these IPC handlers:
+
+<CardGroup cols={2}>
+  <Card title="video/page" icon="list">
+    Paginated list of video projects
+    
+    Returns videos with progress indicators
+  </Card>
+  
+  <Card title="video/make" icon="play">
+    Queue video for synthesis
+    
+    Updates status to 'waiting'
+  </Card>
+  
+  <Card title="video/save" icon="floppy-disk">
+    Create or update video project
+    
+    Saves as 'draft' status
+  </Card>
+  
+  <Card title="video/find" icon="magnifying-glass">
+    Retrieve specific video by ID
+    
+    Returns full video details
+  </Card>
+  
+  <Card title="video/export" icon="download">
+    Export completed video to file system
+    
+    Copies video to specified path
+  </Card>
+  
+  <Card title="video/remove" icon="trash">
+    Delete video project and associated files
+    
+    Removes video, audio, and database entry
+  </Card>
+</CardGroup>
+
+## Video Export
+
+Export completed videos to your file system:
+
+```javascript
+exportVideo(videoId, outputPath)
+```
+
+**IPC Handler:** `video/export`
+
+This function:
+1. Locates the synthesized video file
+2. Copies it to the specified output path
+3. Preserves the original file format
+
+**Service Method:** `exportVideo()` in `src/main/service/video.js:247`
+
+## Error Handling
+
+<Warning>
+  All errors during synthesis are caught and the video status is updated to `failed` with the error message.
+</Warning>
+
+Common failure scenarios:
+- Audio generation fails
+- Face2Face API returns error code
+- Network timeout during status checking
+- Invalid model or voice ID
+
+```javascript
+try {
+  // Synthesis logic
+} catch (error) {
+  updateStatus(videoId, 'failed', error.message)
+}
+```
+
+## Video Duration Calculation
+
+After successful synthesis, FFmpeg calculates the video duration:
+
+```javascript
+const duration = await getVideoDuration(resultPath)
+```
+
+This value is stored in the database for quick reference without re-reading the video file.
+
+## Best Practices
+
+1. **Text Length**: Keep text content reasonable (< 500 words) for optimal synthesis
+2. **Audio Quality**: Use high-quality custom audio files when available
+3. **Queue Monitoring**: Check queue position for videos in `waiting` status
+4. **Progress Polling**: The system automatically polls every 2 seconds - don't add manual polling
+5. **Error Recovery**: Check video status and error messages if synthesis fails
+
+## Advanced: Custom Audio vs. Voice Synthesis
+
+<Tabs>
+  <Tab title="Voice Synthesis">
+    **Use when:**
+    - You have text content to convert to speech
+    - You want to use a trained voice model
+    - Content changes frequently
+    
+    **Parameters:**
+    ```javascript
+    {
+      text_content: "Your script here...",
+      voice_id: 123
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Custom Audio">
+    **Use when:**
+    - You have pre-recorded professional audio
+    - You need precise audio timing
+    - Voice synthesis doesn't support your language
+    
+    **Parameters:**
+    ```javascript
+    {
+      audio_path: "/path/to/audio.wav"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+- [Create and manage avatars](/guides/creating-avatar)
+- [Train custom voices](/guides/voice-cloning)
+- [Manage video projects and models](/guides/managing-models)

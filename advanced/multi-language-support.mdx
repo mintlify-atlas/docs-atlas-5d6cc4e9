@@ -1,0 +1,494 @@
+---
+title: Multi-Language Support
+description: Create AI avatars and synthesize videos in 8 supported languages with Duix Avatar
+---
+
+Duix Avatar supports multi-language voice cloning and video synthesis, enabling you to create digital humans that speak in eight different languages.
+
+## Supported Languages
+
+Duix Avatar provides native support for the following languages:
+
+<CardGroup cols={4}>
+  <Card title="English" icon="flag-usa">
+    Full voice cloning and TTS support
+  </Card>
+  <Card title="中文 (Chinese)" icon="language">
+    Native language support with high accuracy
+  </Card>
+  <Card title="日本語 (Japanese)" icon="language">
+    Complete voice synthesis capabilities
+  </Card>
+  <Card title="한국어 (Korean)" icon="language">
+    Full language support
+  </Card>
+  <Card title="Français (French)" icon="flag">
+    European language support
+  </Card>
+  <Card title="Deutsch (German)" icon="flag">
+    European language support
+  </Card>
+  <Card title="العربية (Arabic)" icon="language">
+    Right-to-left language support
+  </Card>
+  <Card title="Español (Spanish)" icon="flag">
+    Full Spanish language support
+  </Card>
+</CardGroup>
+
+<Note>
+All languages support both voice cloning and text-to-speech synthesis with natural intonation and pronunciation.
+</Note>
+
+## Language Features
+
+Each supported language includes:
+
+- **Voice Cloning**: Train custom voice models from audio samples
+- **Text-to-Speech**: Generate speech from text input
+- **Natural Prosody**: Contextually appropriate intonation and rhythm
+- **Accent Preservation**: Maintains speaker's accent characteristics
+- **Multi-lingual Models**: Single model can handle all supported languages
+
+## Voice Training with Language Selection
+
+### Training Workflow
+
+When training a voice model, the language parameter determines pronunciation rules and phonetic processing:
+
+1. **Prepare Audio Sample**
+   - Record or provide audio in target language
+   - Minimum 10 seconds, recommended 30-60 seconds
+   - Clear audio with minimal background noise
+
+2. **Extract Audio from Video**
+   
+   Separate your training video:
+   ```bash
+   # This step is handled automatically by the client
+   # Produces: silent_video.mp4 + audio.wav
+   ```
+
+3. **Place Audio in Training Directory**
+   
+   **Windows:**
+   ```
+   D:\duix_avatar_data\voice\data\your_audio.wav
+   ```
+   
+   **Linux:**
+   ```
+   ~/duix_avatar_data/voice/data/your_audio.wav
+   ```
+
+4. **Train Voice Model with Language Parameter**
+   
+   The training API includes language specification:
+   
+   ```javascript
+   // Model training request
+   const response = await fetch('http://127.0.0.1:18180/v1/train', {
+     method: 'POST',
+     body: formData
+   });
+   
+   // Response includes reference audio and text
+   {
+     "uuid": "unique-voice-id",
+     "asr_format_audio_url": "/path/to/processed/audio.wav",
+     "reference_audio_text": "Transcribed text in target language"
+   }
+   ```
+
+### Language-Specific Considerations
+
+<Accordion title="English">
+  - Works with various accents (American, British, Australian, etc.)
+  - Best results with clear enunciation
+  - Handles technical and casual speech
+</Accordion>
+
+<Accordion title="中文 (Chinese)">
+  - Supports Mandarin pronunciation
+  - Handles tonal variations accurately
+  - Works with simplified and traditional text input
+  - Preserves regional accent characteristics
+</Accordion>
+
+<Accordion title="日本語 (Japanese)">
+  - Supports hiragana, katakana, and kanji
+  - Accurate pitch accent reproduction
+  - Handles both formal and casual speech patterns
+</Accordion>
+
+<Accordion title="한국어 (Korean)">
+  - Supports Hangul text input
+  - Handles formal and informal speech levels
+  - Preserves Seoul/standard accent by default
+</Accordion>
+
+<Accordion title="Français (French)">
+  - Supports standard French pronunciation
+  - Handles liaison and elision naturally
+  - Works with various regional accents
+</Accordion>
+
+<Accordion title="Deutsch (German)">
+  - Supports standard German pronunciation
+  - Handles compound words correctly
+  - Preserves regional accent variations
+</Accordion>
+
+<Accordion title="العربية (Arabic)">
+  - Supports Modern Standard Arabic
+  - Handles diacritical marks (tashkeel)
+  - Right-to-left text processing
+</Accordion>
+
+<Accordion title="Español (Spanish)">
+  - Supports multiple Spanish variants (Spain, Latin America)
+  - Natural handling of Spanish phonetics
+  - Preserves regional accent characteristics
+</Accordion>
+
+## Text-to-Speech Synthesis
+
+### API Usage by Language
+
+The TTS API endpoint accepts text in any supported language:
+
+```javascript
+POST http://127.0.0.1:18180/v1/invoke
+
+Content-Type: application/json
+
+{
+  "speaker": "unique-voice-id",
+  "text": "Text in any supported language",
+  "format": "wav",
+  "topP": 0.7,
+  "max_new_tokens": 1024,
+  "chunk_length": 100,
+  "repetition_penalty": 1.2,
+  "temperature": 0.7,
+  "reference_audio": "/path/to/voice/sample.wav",
+  "reference_text": "Reference text in same language"
+}
+```
+
+### Language Examples
+
+<CodeGroup>
+
+```json English
+{
+  "speaker": "en-voice-001",
+  "text": "Hello, welcome to Duix Avatar. I am your AI-generated digital human.",
+  "reference_audio": "/code/data/en_sample.wav",
+  "reference_text": "Hello, this is a sample of my voice."
+}
+```
+
+```json Chinese
+{
+  "speaker": "zh-voice-001",
+  "text": "你好,欢迎使用Duix Avatar。我是你的AI数字人。",
+  "reference_audio": "/code/data/zh_sample.wav",
+  "reference_text": "你好,这是我的声音样本。"
+}
+```
+
+```json Japanese
+{
+  "speaker": "ja-voice-001",
+  "text": "こんにちは、Duix Avatarへようこそ。私はあなたのAIデジタルヒューマンです。",
+  "reference_audio": "/code/data/ja_sample.wav",
+  "reference_text": "こんにちは、これは私の声のサンプルです。"
+}
+```
+
+```json Korean
+{
+  "speaker": "ko-voice-001",
+  "text": "안녕하세요, Duix Avatar에 오신 것을 환영합니다. 저는 AI 디지털 휴먼입니다.",
+  "reference_audio": "/code/data/ko_sample.wav",
+  "reference_text": "안녕하세요, 이것은 제 목소리 샘플입니다."
+}
+```
+
+```json French
+{
+  "speaker": "fr-voice-001",
+  "text": "Bonjour, bienvenue sur Duix Avatar. Je suis votre humain numérique généré par IA.",
+  "reference_audio": "/code/data/fr_sample.wav",
+  "reference_text": "Bonjour, ceci est un échantillon de ma voix."
+}
+```
+
+```json German
+{
+  "speaker": "de-voice-001",
+  "text": "Hallo, willkommen bei Duix Avatar. Ich bin Ihr KI-generierter digitaler Mensch.",
+  "reference_audio": "/code/data/de_sample.wav",
+  "reference_text": "Hallo, dies ist eine Probe meiner Stimme."
+}
+```
+
+```json Arabic
+{
+  "speaker": "ar-voice-001",
+  "text": "مرحباً، أهلاً بك في Duix Avatar. أنا إنسانك الرقمي الذي تم إنشاؤه بواسطة الذكاء الاصطناعي.",
+  "reference_audio": "/code/data/ar_sample.wav",
+  "reference_text": "مرحباً، هذه عينة من صوتي."
+}
+```
+
+```json Spanish
+{
+  "speaker": "es-voice-001",
+  "text": "Hola, bienvenido a Duix Avatar. Soy tu humano digital generado por IA.",
+  "reference_audio": "/code/data/es_sample.wav",
+  "reference_text": "Hola, esta es una muestra de mi voz."
+}
+```
+
+</CodeGroup>
+
+## Language Detection
+
+Duix Avatar's TTS engine automatically detects the language of input text:
+
+- **Auto-detection**: Text language is identified from Unicode characters
+- **Mixed Languages**: Can handle code-switching within reasonable limits
+- **Fallback**: Defaults to reference audio language if uncertain
+
+<Warning>
+**Best Practice**: For optimal results, keep text in a single language. Mixed-language content may have inconsistent pronunciation.
+</Warning>
+
+## Character Encoding
+
+Ensure proper character encoding for non-Latin scripts:
+
+### API Requests
+
+```javascript
+// JavaScript/Node.js
+const response = await fetch('http://127.0.0.1:18180/v1/invoke', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json; charset=utf-8'
+  },
+  body: JSON.stringify({
+    text: "你好世界",  // UTF-8 encoded
+    // ... other parameters
+  })
+});
+```
+
+### File Encoding
+
+When preparing text files:
+
+```bash
+# Verify UTF-8 encoding
+file -i your_script.txt
+
+# Convert to UTF-8 if needed
+iconv -f ISO-8859-1 -t UTF-8 input.txt > output.txt
+```
+
+## Performance Considerations
+
+### Synthesis Speed by Language
+
+Relative TTS processing speeds:
+
+| Language | Speed | Notes |
+|----------|-------|-------|
+| English | 1.0x | Baseline |
+| Chinese | 0.9x | Slightly slower due to tonal processing |
+| Japanese | 0.9x | Pitch accent computation |
+| Korean | 0.95x | Complex syllable structures |
+| French | 1.0x | Similar to English |
+| German | 0.95x | Compound word processing |
+| Arabic | 0.85x | RTL and diacritical processing |
+| Spanish | 1.0x | Similar to English |
+
+<Note>
+Speeds are approximate and depend on text complexity, sentence length, and GPU performance.
+</Note>
+
+## Quality Optimization
+
+### Training Data Quality
+
+For best results across all languages:
+
+1. **Audio Duration**: 30-60 seconds minimum
+2. **Sample Rate**: 44.1kHz or higher
+3. **Format**: WAV, uncompressed
+4. **Content**: Native speaker with clear articulation
+5. **Background**: Minimal noise, no music
+6. **Speech Style**: Natural conversational tone
+
+### Text Preparation
+
+<Accordion title="English">
+  - Use proper capitalization and punctuation
+  - Spell out numbers and abbreviations
+  - Include natural pauses with commas and periods
+</Accordion>
+
+<Accordion title="Chinese">
+  - Use simplified or traditional characters consistently
+  - Include proper punctuation (。，！？)
+  - Avoid mixing with excessive English words
+</Accordion>
+
+<Accordion title="Japanese">
+  - Use natural kanji/kana mix
+  - Include proper particles (は、が、を、に)
+  - Use Japanese punctuation (。、)
+</Accordion>
+
+<Accordion title="Arabic">
+  - Include diacritical marks for better pronunciation
+  - Use proper Arabic punctuation
+  - Ensure RTL text direction in editors
+</Accordion>
+
+## Multilingual Scenarios
+
+### Creating Multiple Language Avatars
+
+Create separate voice models for each language:
+
+```javascript
+// Train English voice
+const enVoice = await trainVoice({
+  audio: 'english_sample.wav',
+  language: 'en'
+});
+
+// Train Chinese voice
+const zhVoice = await trainVoice({
+  audio: 'chinese_sample.wav',
+  language: 'zh'
+});
+
+// Use appropriate voice for each video
+const englishVideo = await synthesizeVideo({
+  speaker: enVoice.uuid,
+  text: 'Hello world',
+  video_url: 'avatar.mp4'
+});
+
+const chineseVideo = await synthesizeVideo({
+  speaker: zhVoice.uuid,
+  text: '你好世界',
+  video_url: 'avatar.mp4'
+});
+```
+
+### Same Avatar, Multiple Languages
+
+Use the same video model with different voice models:
+
+1. Train separate voice models for each language
+2. Use the same source video for all
+3. Generate language-specific audio
+4. Synthesize videos with matching language audio
+
+## Troubleshooting
+
+<Accordion title="Incorrect pronunciation">
+  **Symptoms:**
+  - Words pronounced incorrectly
+  - Wrong intonation or accent
+  
+  **Solutions:**
+  1. Verify training audio is in the same language as synthesis text
+  2. Ensure reference text matches reference audio language
+  3. Use higher quality training samples (60+ seconds)
+  4. Check text encoding (UTF-8 required)
+</Accordion>
+
+<Accordion title="Garbled characters in output">
+  **Symptoms:**
+  - Non-Latin characters appear as �� or boxes
+  - Text not displaying correctly
+  
+  **Solutions:**
+  1. Verify UTF-8 encoding:
+  ```bash
+  file -i your_file.txt
+  ```
+  
+  2. Convert to UTF-8:
+  ```bash
+  iconv -f YOUR_ENCODING -t UTF-8 input.txt > output.txt
+  ```
+  
+  3. Set correct Content-Type header:
+  ```javascript
+  headers: {'Content-Type': 'application/json; charset=utf-8'}
+  ```
+</Accordion>
+
+<Accordion title="Mixed language synthesis issues">
+  **Symptoms:**
+  - Unnatural pronunciation when mixing languages
+  - Voice switches between different styles
+  
+  **Solutions:**
+  1. Avoid mixing languages in single text block
+  2. Train separate models for each language
+  3. Split content into language-specific segments
+  4. Use language-appropriate punctuation
+</Accordion>
+
+## Language-Specific Resources
+
+Optimize settings by language:
+
+### High-Context Languages (Chinese, Japanese, Korean)
+
+```json
+{
+  "chunk_length": 150,
+  "max_new_tokens": 2048,
+  "temperature": 0.6
+}
+```
+
+### Phonetic Languages (English, Spanish, French, German)
+
+```json
+{
+  "chunk_length": 100,
+  "max_new_tokens": 1024,
+  "temperature": 0.7
+}
+```
+
+### Complex Scripts (Arabic)
+
+```json
+{
+  "chunk_length": 120,
+  "max_new_tokens": 1536,
+  "temperature": 0.65
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Voice Cloning" icon="microphone" href="/guides/voice-cloning">
+    Complete guide to training multi-language voices
+  </Card>
+  <Card title="Video Synthesis" icon="video" href="/guides/video-synthesis">
+    Generate videos with multi-language audio
+  </Card>
+</CardGroup>

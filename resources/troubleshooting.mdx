@@ -1,0 +1,483 @@
+---
+title: 'Troubleshooting Guide'
+description: 'Solutions to common issues and problems'
+icon: 'wrench'
+---
+
+## Quick Diagnostics
+
+Before diving into specific issues, run these quick diagnostic checks:
+
+<Steps>
+  <Step title="Check Docker Services">
+    Open Docker Desktop and verify all three services are running:
+    - `Duix.Avatar-asr`
+    - `Duix.Avatar-tts`
+    - `Duix.Avatar-gen-video`
+  </Step>
+  
+  <Step title="Verify GPU Drivers">
+    **Windows:**
+    ```bash
+    # Open Device Manager and check for NVIDIA GPU
+    ```
+    
+    **Linux:**
+    ```bash
+    nvidia-smi
+    ```
+    Should display your GPU information.
+  </Step>
+  
+  <Step title="Check Version">
+    Ensure you're running the latest version of both server and client.
+  </Step>
+</Steps>
+
+---
+
+## Docker Connection Issues
+
+### Error: "Connection Refused" When Running docker-compose
+
+**Symptoms:**
+```bash
+docker-compose up -d
+[+] Running 3/3
+✘ Duix.Avatar-asr Error Get "https://registry-1.docker.io/v2/": net/http: request canceled...
+✘ Duix.Avatar-gen-video Error context canceled
+✘ Duix.Avatar-tts Error context canceled
+Error response from daemon: Get "https://registry-1.docker.io/v2/": net/http: request canceled
+```
+
+**Causes:**
+- Docker Hub official registry connection is unstable
+- Network connectivity issues
+- Firewall blocking Docker
+
+**Solutions:**
+
+<AccordionGroup>
+  <Accordion title="Solution 1: Enable VPN Global Mode">
+    If you're using a VPN, enable **global mode** to allow Docker to access the registry.
+    
+    1. Open your VPN application
+    2. Switch to global/system-wide proxy mode
+    3. Retry `docker-compose up -d`
+  </Accordion>
+
+  <Accordion title="Solution 2: Use Mirror Registry (China)">
+    Configure Docker to use a mirror registry for faster downloads:
+    
+    **Docker Desktop:**
+    1. Open Docker Desktop
+    2. Go to Settings → Docker Engine
+    3. Add the following configuration:
+    
+    ```json
+    {
+      "builder": {
+        "gc": {
+          "defaultKeepStorage": "20GB",
+          "enabled": true
+        }
+      },
+      "experimental": false,
+      "registry-mirrors": [
+        "https://docker.zhai.cm",
+        "https://a.ussh.net",
+        "https://hub.littlediary.cn",
+        "https://hub.rat.dev",
+        "https://atomhub.openatom.cn",
+        "https://docker.m.daocloud.io",
+        "https://docker.1ms.run"
+      ]
+    }
+    ```
+    
+    4. Click **Apply & Restart**
+    5. Retry `docker-compose up -d`
+  </Accordion>
+
+  <Accordion title="Solution 3: Manual Image Pull">
+    Pull images manually one at a time:
+    
+    ```bash
+    docker pull guiji2025/fun-asr
+    docker pull guiji2025/fish-speech-ziming
+    docker pull guiji2025/duix.avatar
+    ```
+    
+    Then run:
+    ```bash
+    docker-compose up -d
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Avatar Training Issues
+
+### Error: "Training Failed" When Creating New Avatar
+
+**Symptoms:**
+- Avatar training fails immediately
+- Error message appears during model creation
+- No error details provided
+
+**Common Causes & Solutions:**
+
+<AccordionGroup>
+  <Accordion title="Video Has No Audio">
+    **Problem:** The training video must contain human speech audio.
+    
+    **Solution:**
+    - Ensure your video file has an audio track
+    - Verify the person is speaking in the video
+    - Audio must be clear and audible
+    - Remove background music if possible
+    
+    <Warning>
+      Videos without audio or with music-only soundtracks will fail during training. The audio is used for voice cloning.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="ASR Service Not Ready">
+    **Problem:** The `Duix.Avatar-asr` service takes time to start.
+    
+    **Solution:**
+    - Wait 3-5 minutes after starting Docker services
+    - Check that `Duix.Avatar-asr` shows as "Running" in Docker Desktop
+    - Verify the service is healthy:
+    
+    ```bash
+    docker logs duix-avatar-asr
+    ```
+    
+    Look for "Service started" or similar message.
+  </Accordion>
+
+  <Accordion title="Insufficient Memory (16GB or less)">
+    **Problem:** Systems with only 16GB RAM may not have enough memory.
+    
+    **Solution:**
+    - Close other applications to free up memory
+    - Upgrade to **32GB RAM** (recommended)
+    - Use the lite version if full version doesn't work
+    - Monitor memory usage in Task Manager/System Monitor
+  </Accordion>
+
+  <Accordion title="Video Format Issues">
+    **Problem:** Incompatible video format or codec.
+    
+    **Solution:**
+    - Convert video to MP4 format
+    - Use H.264 video codec
+    - Ensure video resolution is reasonable (1080p or lower)
+    - Keep video length between 30 seconds and 5 minutes
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Service Connection Errors
+
+### Error: "Connection Refused [Errno 111]" During Avatar Training
+
+**Full Error:**
+```python
+ConnectionRefusedError: [Errno 111] Connection refused
+AttributeError: 'NoneType' object has no attribute 'send'
+```
+
+**Cause:**
+The `Duix.Avatar-asr` service is still starting up and not ready to accept connections.
+
+**Solution:**
+
+<Steps>
+  <Step title="Wait for Service Startup">
+    Wait 3-5 minutes after running `docker-compose up -d` before attempting to train avatars.
+  </Step>
+  
+  <Step title="Verify Service Status">
+    Check that all services are running:
+    ```bash
+    docker ps
+    ```
+    
+    All three containers should show "Up" status.
+  </Step>
+  
+  <Step title="Check Service Logs">
+    ```bash
+    docker logs duix-avatar-asr
+    ```
+    
+    Wait until you see initialization complete messages.
+  </Step>
+  
+  <Step title="Restart Services if Needed">
+    If services are stuck:
+    ```bash
+    docker-compose down
+    docker-compose up -d
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  Systems with less RAM (e.g., 16GB) may not be able to start all services. Consider upgrading to 32GB RAM.
+</Info>
+
+---
+
+## GPU and Driver Issues
+
+### GPU Not Detected
+
+**Symptoms:**
+- Services fail to start
+- Error messages about CUDA or GPU
+- Slow performance or crashes
+
+**Solutions:**
+
+<AccordionGroup>
+  <Accordion title="Verify NVIDIA Drivers">
+    **Windows:**
+    1. Open Device Manager
+    2. Expand "Display adapters"
+    3. Verify NVIDIA GPU is listed
+    4. Check for driver issues (yellow warning icon)
+    
+    **Linux:**
+    ```bash
+    nvidia-smi
+    ```
+    
+    Should display GPU information. If not:
+    ```bash
+    # Install drivers
+    sudo apt update
+    sudo apt install nvidia-driver-XXX
+    ```
+    
+    Download latest drivers: [https://www.nvidia.cn/drivers/lookup/](https://www.nvidia.cn/drivers/lookup/)
+  </Accordion>
+
+  <Accordion title="Install NVIDIA Container Toolkit (Linux)">
+    Docker needs the NVIDIA Container Toolkit to access GPUs:
+    
+    ```bash
+    # Add NVIDIA package repository
+    distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+      && curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | sudo apt-key add - \
+      && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    
+    # Update and install
+    sudo apt-get update
+    sudo apt-get install -y nvidia-container-toolkit
+    
+    # Configure Docker
+    sudo nvidia-ctk runtime configure --runtime=docker
+    
+    # Restart Docker
+    sudo systemctl restart docker
+    ```
+  </Accordion>
+
+  <Accordion title="Enable WSL GPU Support (Windows)">
+    For Windows with WSL:
+    
+    1. Update WSL:
+    ```bash
+    wsl --update
+    ```
+    
+    2. Verify WSL installation:
+    ```bash
+    wsl --list --verbose
+    ```
+    
+    3. Ensure Docker Desktop is configured to use WSL 2 backend
+    4. In Docker Desktop settings, enable "Use WSL 2 based engine"
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Service Continuously Restarting
+
+### TTS Service (heygen-tts) Keeps Restarting
+
+**Symptoms:**
+- `Duix.Avatar-tts` service shows constant restarts in Docker
+- Logs show repeated initialization attempts
+
+**Solutions:**
+
+1. **Check available memory:**
+   ```bash
+   # Windows: Task Manager → Performance
+   # Linux:
+   free -h
+   ```
+
+2. **Increase Docker memory limit (Docker Desktop):**
+   - Settings → Resources
+   - Increase Memory to at least 16GB
+   - Apply & Restart
+
+3. **Check logs for specific errors:**
+   ```bash
+   docker logs duix-avatar-tts --tail 100
+   ```
+
+4. **Related issue:**
+   See [GitHub Issue #69](https://github.com/duixcom/Duix.Avatar/issues/69)
+
+---
+
+## Storage and Disk Space Issues
+
+### Insufficient Disk Space
+
+**Requirements:**
+- **Windows C Drive:** 100GB+ free space (for Docker images)
+- **Windows D Drive:** 30GB+ free space (for avatar data)
+- **Linux:** 100GB+ free space on system drive
+
+**Solutions:**
+
+<AccordionGroup>
+  <Accordion title="Change Docker Storage Location (Windows)">
+    If C drive has less than 100GB free:
+    
+    1. Open Docker Desktop
+    2. Go to Settings → Resources → Advanced
+    3. Change "Disk image location" to a drive with more space
+    4. Apply & Restart
+    
+    <Info>
+      This requires Docker to move all existing images and containers, which may take time.
+    </Info>
+  </Accordion>
+
+  <Accordion title="Clean Up Docker Resources">
+    Remove unused Docker images and containers:
+    
+    ```bash
+    # Remove unused images
+    docker image prune -a
+    
+    # Remove stopped containers
+    docker container prune
+    
+    # Remove unused volumes
+    docker volume prune
+    
+    # Clean everything (careful!)
+    docker system prune -a
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Ubuntu-Specific Issues
+
+### AppImage Won't Launch
+
+**Symptoms:**
+- Double-clicking `Duix.Avatar-x.x.x.AppImage` does nothing
+- Application doesn't start
+
+**Solutions:**
+
+<AccordionGroup>
+  <Accordion title="Make AppImage Executable">
+    ```bash
+    chmod +x Duix.Avatar-x.x.x.AppImage
+    ./Duix.Avatar-x.x.x.AppImage
+    ```
+  </Accordion>
+
+  <Accordion title="Launch as Root User">
+    If running as root user:
+    
+    ```bash
+    ./Duix.Avatar-x.x.x.AppImage --no-sandbox
+    ```
+    
+    The `--no-sandbox` parameter is required for root users.
+  </Accordion>
+
+  <Accordion title="Install Required Dependencies">
+    ```bash
+    sudo apt update
+    sudo apt install libfuse2
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Performance Issues
+
+### Slow Video Generation
+
+**Causes & Solutions:**
+
+<CardGroup cols={2}>
+  <Card title="GPU Performance" icon="microchip">
+    - Use RTX 4070 or better
+    - Close other GPU-intensive applications
+    - Update GPU drivers
+  </Card>
+  
+  <Card title="System Resources" icon="memory">
+    - Ensure 32GB RAM available
+    - Close unnecessary applications
+    - Monitor CPU/GPU usage
+  </Card>
+  
+  <Card title="Video Length" icon="clock">
+    - Shorter videos process faster
+    - Split long videos into segments
+    - Use appropriate resolution (1080p max)
+  </Card>
+  
+  <Card title="Optimization Tips" icon="gauge-high">
+    - See [Performance Tips](/resources/performance-tips)
+    - Consider API service for production
+    - Use SSD for storage
+  </Card>
+</CardGroup>
+
+---
+
+## Still Having Issues?
+
+<Steps>
+  <Step title="Check GitHub Issues">
+    Search [existing issues](https://github.com/duixcom/Duix.Avatar/issues) for your problem.
+  </Step>
+  
+  <Step title="Gather Information">
+    Collect:
+    - Client logs
+    - Server logs (`docker logs`)
+    - System information (OS, GPU, RAM)
+    - Reproduction steps
+  </Step>
+  
+  <Step title="Create Issue">
+    Open a [new issue](https://github.com/duixcom/Duix.Avatar/issues/new) with all gathered information.
+  </Step>
+  
+  <Step title="Contact Support">
+    For urgent issues, email: james@duix.com
+  </Step>
+</Steps>

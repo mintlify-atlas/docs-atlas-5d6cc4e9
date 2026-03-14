@@ -1,0 +1,452 @@
+---
+title: GPU Optimization
+description: Optimize NVIDIA GPU performance for Duix Avatar video synthesis and voice cloning
+---
+
+Duix Avatar requires NVIDIA GPU acceleration for all core services. This guide covers GPU requirements, optimization settings, and performance tuning.
+
+## Hardware Requirements
+
+### Recommended Configuration
+
+<CardGroup cols={2}>
+  <Card title="Minimum GPU" icon="microchip">
+    NVIDIA RTX 3060 or equivalent
+    - 12GB VRAM
+    - CUDA Compute 8.6+
+  </Card>
+  <Card title="Recommended GPU" icon="rocket">
+    NVIDIA RTX 4070 or higher
+    - 12GB+ VRAM
+    - CUDA Compute 8.9+
+  </Card>
+</CardGroup>
+
+### System Requirements
+
+**Recommended Configuration:**
+- **CPU**: 13th Gen Intel Core i5-13400F or equivalent
+- **Memory**: 32GB RAM (necessary)
+- **GPU**: NVIDIA RTX 4070
+- **Storage**: 100GB+ free space
+- **OS**: Windows 10 19042.1526+ or Ubuntu 22.04
+
+<Warning>
+**GPU is mandatory**: All three Docker services require NVIDIA GPU with proper drivers. The application will not start without GPU support.
+</Warning>
+
+## NVIDIA Driver Installation
+
+### Windows
+
+1. Download drivers from [NVIDIA Driver Downloads](https://www.nvidia.cn/drivers/lookup/)
+2. Select your GPU model and operating system
+3. Install the driver and restart your system
+4. Verify installation:
+
+```bash
+nvidia-smi
+```
+
+You should see your GPU information and driver version.
+
+### Ubuntu 22.04
+
+1. Install NVIDIA drivers:
+
+```bash
+sudo apt update
+sudo ubuntu-drivers autoinstall
+sudo reboot
+```
+
+2. Verify installation:
+
+```bash
+nvidia-smi
+```
+
+3. Install NVIDIA Container Toolkit for Docker GPU support:
+
+```bash
+# Add NVIDIA package repository
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | sudo apt-key add - \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# Install toolkit
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# Configure Docker
+sudo nvidia-ctk runtime configure --runtime=docker
+
+# Restart Docker
+sudo systemctl restart docker
+```
+
+4. Test GPU access in Docker:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+```
+
+## NVIDIA Runtime Configuration
+
+### Docker Runtime Settings
+
+All Duix Avatar services use the NVIDIA runtime:
+
+```yaml
+services:
+  duix-avatar-gen-video:
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+```
+
+### GPU Device Selection
+
+Control which GPU devices are available to services:
+
+**Single GPU (TTS service):**
+```yaml
+environment:
+  - NVIDIA_VISIBLE_DEVICES=0
+  - NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility,video,display
+```
+
+**All GPUs (ASR service):**
+```yaml
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+```
+
+### Driver Capabilities
+
+The `NVIDIA_DRIVER_CAPABILITIES` environment variable enables specific GPU features:
+
+| Capability | Purpose |
+|------------|----------|
+| `compute` | CUDA compute operations |
+| `graphics` | OpenGL/Vulkan graphics |
+| `utility` | nvidia-smi and management tools |
+| `video` | Video encoding/decoding |
+| `display` | Display output |
+
+<Note>
+Duix Avatar uses the full capability set: `compute,graphics,utility,video,display`
+</Note>
+
+## PyTorch CUDA Memory Configuration
+
+### PYTORCH_CUDA_ALLOC_CONF
+
+The video generation service uses optimized CUDA memory allocation:
+
+```yaml
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+```
+
+**What this does:**
+- Limits memory fragmentation during allocation
+- Sets maximum split block size to 512MB
+- Reduces out-of-memory errors on GPUs with limited VRAM
+- Improves memory efficiency for long-running processes
+
+### Tuning Memory Settings
+
+Adjust based on your GPU's VRAM:
+
+<CodeGroup>
+
+```yaml 8-12GB VRAM
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:256
+```
+
+```yaml 16-24GB VRAM
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+```
+
+```yaml 24GB+ VRAM
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024
+```
+
+</CodeGroup>
+
+<Warning>
+Lower values reduce fragmentation but may slow down large allocations. Higher values improve performance but increase fragmentation risk.
+</Warning>
+
+### Additional CUDA Settings
+
+For advanced optimization, combine multiple PyTorch CUDA configurations:
+
+```yaml
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,garbage_collection_threshold:0.6
+```
+
+**Available options:**
+- `max_split_size_mb`: Maximum block split size
+- `garbage_collection_threshold`: When to trigger memory cleanup (0.0-1.0)
+- `expandable_segments`: Enable expandable memory segments (true/false)
+
+## Shared Memory Configuration
+
+### Shared Memory Size
+
+The video generation service requires substantial shared memory:
+
+```yaml
+shm_size: '8g'
+```
+
+This allocates 8GB of shared memory for:
+- GPU-CPU data transfer
+- Multiprocessing operations
+- Temporary tensor storage
+
+### Adjusting for Your System
+
+**For systems with 16GB RAM:**
+```yaml
+shm_size: '4g'
+```
+
+**For systems with 32GB+ RAM:**
+```yaml
+shm_size: '8g'  # Recommended
+```
+
+**For systems with 64GB+ RAM:**
+```yaml
+shm_size: '16g'
+```
+
+<Note>
+Shared memory is allocated from system RAM, not GPU VRAM. Ensure you have sufficient RAM available.
+</Note>
+
+## Multi-GPU Configuration
+
+### Using Multiple GPUs
+
+If you have multiple NVIDIA GPUs, distribute services across devices:
+
+```yaml
+services:
+  duix-avatar-tts:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0  # First GPU
+  
+  duix-avatar-asr:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=1  # Second GPU
+  
+  duix-avatar-gen-video:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0  # Share with TTS
+```
+
+### GPU Priority
+
+Prioritize the most powerful GPU for video generation:
+
+```yaml
+duix-avatar-gen-video:
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=0  # Use your fastest GPU
+```
+
+## Performance Monitoring
+
+### Real-time GPU Monitoring
+
+Monitor GPU usage during video synthesis:
+
+```bash
+# Continuous monitoring
+watch -n 1 nvidia-smi
+
+# Detailed GPU stats
+nvidia-smi dmon -s pucvmet
+```
+
+### Container GPU Usage
+
+Monitor GPU usage per Docker container:
+
+```bash
+# Install nvidia-docker2 if not already installed
+sudo apt-get install nvidia-docker2
+
+# Monitor specific container
+docker stats duix-avatar-gen-video
+```
+
+### Expected GPU Utilization
+
+During video synthesis:
+- **GPU Usage**: 80-100%
+- **Memory Usage**: 6-10GB VRAM
+- **Temperature**: 60-80°C (normal operating range)
+
+## Optimization Tips
+
+### 1. Minimize GPU Memory Fragmentation
+
+```yaml
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,garbage_collection_threshold:0.6
+```
+
+### 2. Enable Privileged Mode
+
+Allows direct hardware access for better performance:
+
+```yaml
+privileged: true
+```
+
+### 3. Increase Shared Memory
+
+For high-resolution video synthesis:
+
+```yaml
+shm_size: '16g'
+```
+
+### 4. Pin CPU Cores
+
+Reduce context switching (advanced):
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '8'
+```
+
+### 5. Use High-Performance Power Mode
+
+**Windows:**
+- Settings → Power & battery → Power mode → Best performance
+
+**Linux:**
+```bash
+sudo nvidia-smi -pm 1
+sudo nvidia-smi -pl 300  # Set power limit (adjust for your GPU)
+```
+
+## Troubleshooting
+
+<Accordion title="Out of memory errors">
+  **Symptoms:**
+  - `CUDA out of memory` errors
+  - Services crash during video synthesis
+  
+  **Solutions:**
+  
+  1. Reduce CUDA split size:
+  ```yaml
+  environment:
+    - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:256
+  ```
+  
+  2. Increase shared memory:
+  ```yaml
+  shm_size: '16g'
+  ```
+  
+  3. Close other GPU applications
+  4. Process shorter video segments
+</Accordion>
+
+<Accordion title="Low GPU utilization">
+  **Symptoms:**
+  - GPU usage below 50%
+  - Slow video generation
+  
+  **Solutions:**
+  
+  1. Check for CPU bottleneck:
+  ```bash
+  htop
+  ```
+  
+  2. Verify NVIDIA runtime is active:
+  ```bash
+  docker inspect duix-avatar-gen-video | grep Runtime
+  ```
+  
+  3. Ensure no power throttling:
+  ```bash
+  nvidia-smi -q -d PERFORMANCE
+  ```
+</Accordion>
+
+<Accordion title="Services won't start">
+  **Symptoms:**
+  - Containers exit immediately
+  - "nvidia runtime not found" errors
+  
+  **Solutions:**
+  
+  1. Verify NVIDIA driver:
+  ```bash
+  nvidia-smi
+  ```
+  
+  2. Check NVIDIA Container Toolkit:
+  ```bash
+  docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+  ```
+  
+  3. Restart Docker:
+  ```bash
+  sudo systemctl restart docker
+  ```
+</Accordion>
+
+## Benchmarking
+
+### Test GPU Performance
+
+Run a benchmark to verify optimal GPU configuration:
+
+```bash
+# Inside the gen-video container
+docker exec -it duix-avatar-gen-video bash
+python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'GPU Count: {torch.cuda.device_count()}'); print(f'GPU Name: {torch.cuda.get_device_name(0)}')"
+```
+
+Expected output:
+```
+CUDA Available: True
+GPU Count: 1
+GPU Name: NVIDIA GeForce RTX 4070
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Configuration" icon="docker" href="/advanced/docker-configuration">
+    Complete Docker service setup guide
+  </Card>
+  <Card title="NVIDIA 50 Series" icon="microchip" href="/advanced/nvidia-50-series">
+    Optimization for latest NVIDIA GPUs
+  </Card>
+</CardGroup>

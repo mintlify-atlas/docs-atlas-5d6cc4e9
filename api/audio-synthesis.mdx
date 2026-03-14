@@ -1,0 +1,431 @@
+---
+title: Audio Synthesis
+description: Generate speech audio from text using trained voice models
+---
+
+## Overview
+
+The Audio Synthesis API converts text to speech using a previously trained voice model. This endpoint generates natural-sounding speech that matches the voice characteristics captured during the model training phase.
+
+<Note>
+You must complete [Model Training](/api/model-training) before using this endpoint, as it requires the `asr_format_audio_url` and `reference_audio_text` values from the training response.
+</Note>
+
+## Endpoint
+
+<ParamField path="POST /v1/invoke" type="endpoint">
+  Generate speech audio from text input
+  
+  **Base URL**: `http://127.0.0.1:18180`
+  
+  **Full URL**: `http://127.0.0.1:18180/v1/invoke`
+  
+  **Response Type**: Binary audio data (WAV format)
+</ParamField>
+
+## Request Parameters
+
+<ParamField path="speaker" type="string" required>
+  Unique identifier for the synthesis session
+  
+  **Format**: UUID (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+  
+  Use a unique UUID for each synthesis request. This is used internally for session management.
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Text content to synthesize into speech
+  
+  **Example**: `"Hello, welcome to Duix Avatar!"`
+  
+  Supports multi-language text based on the language used during model training.
+</ParamField>
+
+<ParamField path="reference_audio" type="string" required>
+  ASR-processed audio URL from model training
+  
+  **Source**: Use the `asr_format_audio_url` value returned from `/v1/preprocess_and_tran`
+  
+  This parameter links the synthesis to your trained voice model.
+</ParamField>
+
+<ParamField path="reference_text" type="string" required>
+  Reference transcription from model training
+  
+  **Source**: Use the `reference_audio_text` value returned from `/v1/preprocess_and_tran`
+  
+  This helps the model understand the voice characteristics.
+</ParamField>
+
+<ParamField path="format" type="string" default="wav">
+  Output audio format
+  
+  **Fixed Value**: `"wav"`
+  
+  Currently only WAV format is supported.
+</ParamField>
+
+<ParamField path="topP" type="number" default={0.7}>
+  Top-P sampling parameter
+  
+  **Range**: 0.0 - 1.0
+  
+  **Recommended**: `0.7`
+  
+  Controls diversity of speech generation. Lower values produce more deterministic output.
+</ParamField>
+
+<ParamField path="temperature" type="number" default={0.7}>
+  Sampling temperature
+  
+  **Range**: 0.0 - 2.0
+  
+  **Recommended**: `0.7`
+  
+  Controls randomness in generation. Lower values make output more focused and deterministic.
+</ParamField>
+
+<ParamField path="repetition_penalty" type="number" default={1.2}>
+  Repetition penalty coefficient
+  
+  **Range**: 1.0 - 2.0
+  
+  **Recommended**: `1.2`
+  
+  Prevents the model from repeating the same phrases. Higher values reduce repetition.
+</ParamField>
+
+<ParamField path="max_new_tokens" type="integer" default={1024}>
+  Maximum number of tokens to generate
+  
+  **Recommended**: `1024`
+  
+  Controls the maximum length of generated audio.
+</ParamField>
+
+<ParamField path="chunk_length" type="integer" default={100}>
+  Length of processing chunks
+  
+  **Recommended**: `100`
+  
+  Affects memory usage and processing speed.
+</ParamField>
+
+<ParamField path="need_asr" type="boolean" default={false}>
+  Whether to perform ASR on the output
+  
+  **Fixed Value**: `false`
+  
+  ASR is not needed for synthesis output.
+</ParamField>
+
+<ParamField path="streaming" type="boolean" default={false}>
+  Enable streaming output
+  
+  **Fixed Value**: `false`
+  
+  Streaming is not currently supported.
+</ParamField>
+
+<ParamField path="is_fixed_seed" type="integer" default={0}>
+  Use fixed random seed
+  
+  **Values**: `0` (random) or `1` (fixed)
+  
+  **Recommended**: `0`
+  
+  Set to 1 for reproducible output.
+</ParamField>
+
+<ParamField path="is_norm" type="integer" default={1}>
+  Enable audio normalization
+  
+  **Values**: `0` (disabled) or `1` (enabled)
+  
+  **Recommended**: `1`
+  
+  Normalizes audio volume for consistent output levels.
+</ParamField>
+
+## Response
+
+The endpoint returns binary audio data (WAV format) directly in the response body.
+
+<ResponseField name="Binary Audio Data" type="arraybuffer">
+  Raw audio data in WAV format
+  
+  **Content-Type**: `audio/wav`
+  
+  Save this data directly to a `.wav` file for use in video synthesis.
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://127.0.0.1:18180/v1/invoke \
+  -H "Content-Type: application/json" \
+  -o output.wav \
+  -d '{
+    "speaker": "550e8400-e29b-41d4-a716-446655440000",
+    "text": "Welcome to Duix Avatar! This is a demonstration of voice synthesis.",
+    "format": "wav",
+    "topP": 0.7,
+    "max_new_tokens": 1024,
+    "chunk_length": 100,
+    "repetition_penalty": 1.2,
+    "temperature": 0.7,
+    "need_asr": false,
+    "streaming": false,
+    "is_fixed_seed": 0,
+    "is_norm": 1,
+    "reference_audio": "processed/audio_20240315_123456.wav",
+    "reference_text": "Hello, this is my voice sample for training the AI model."
+  }'
+```
+
+```javascript JavaScript
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+
+const response = await fetch('http://127.0.0.1:18180/v1/invoke', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    speaker: uuidv4(),
+    text: 'Welcome to Duix Avatar! This is a demonstration of voice synthesis.',
+    format: 'wav',
+    topP: 0.7,
+    max_new_tokens: 1024,
+    chunk_length: 100,
+    repetition_penalty: 1.2,
+    temperature: 0.7,
+    need_asr: false,
+    streaming: false,
+    is_fixed_seed: 0,
+    is_norm: 1,
+    reference_audio: 'processed/audio_20240315_123456.wav',
+    reference_text: 'Hello, this is my voice sample for training the AI model.'
+  })
+});
+
+const audioBuffer = await response.arrayBuffer();
+fs.writeFileSync('output.wav', Buffer.from(audioBuffer));
+
+console.log('Audio saved to output.wav');
+```
+
+```python Python
+import requests
+import uuid
+
+response = requests.post(
+    'http://127.0.0.1:18180/v1/invoke',
+    json={
+        'speaker': str(uuid.uuid4()),
+        'text': 'Welcome to Duix Avatar! This is a demonstration of voice synthesis.',
+        'format': 'wav',
+        'topP': 0.7,
+        'max_new_tokens': 1024,
+        'chunk_length': 100,
+        'repetition_penalty': 1.2,
+        'temperature': 0.7,
+        'need_asr': False,
+        'streaming': False,
+        'is_fixed_seed': 0,
+        'is_norm': 1,
+        'reference_audio': 'processed/audio_20240315_123456.wav',
+        'reference_text': 'Hello, this is my voice sample for training the AI model.'
+    }
+)
+
+with open('output.wav', 'wb') as f:
+    f.write(response.content)
+
+print('Audio saved to output.wav')
+```
+
+```go Go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "io"
+    "net/http"
+    "os"
+    "github.com/google/uuid"
+)
+
+type SynthesisRequest struct {
+    Speaker           string  `json:"speaker"`
+    Text              string  `json:"text"`
+    Format            string  `json:"format"`
+    TopP              float64 `json:"topP"`
+    MaxNewTokens      int     `json:"max_new_tokens"`
+    ChunkLength       int     `json:"chunk_length"`
+    RepetitionPenalty float64 `json:"repetition_penalty"`
+    Temperature       float64 `json:"temperature"`
+    NeedASR           bool    `json:"need_asr"`
+    Streaming         bool    `json:"streaming"`
+    IsFixedSeed       int     `json:"is_fixed_seed"`
+    IsNorm            int     `json:"is_norm"`
+    ReferenceAudio    string  `json:"reference_audio"`
+    ReferenceText     string  `json:"reference_text"`
+}
+
+func main() {
+    req := SynthesisRequest{
+        Speaker:           uuid.New().String(),
+        Text:              "Welcome to Duix Avatar!",
+        Format:            "wav",
+        TopP:              0.7,
+        MaxNewTokens:      1024,
+        ChunkLength:       100,
+        RepetitionPenalty: 1.2,
+        Temperature:       0.7,
+        NeedASR:           false,
+        Streaming:         false,
+        IsFixedSeed:       0,
+        IsNorm:            1,
+        ReferenceAudio:    "processed/audio_20240315_123456.wav",
+        ReferenceText:     "Hello, this is my voice sample.",
+    }
+    
+    jsonData, _ := json.Marshal(req)
+    resp, _ := http.Post(
+        "http://127.0.0.1:18180/v1/invoke",
+        "application/json",
+        bytes.NewBuffer(jsonData),
+    )
+    defer resp.Body.Close()
+    
+    // Save audio to file
+    out, _ := os.Create("output.wav")
+    defer out.Close()
+    io.Copy(out, resp.Body)
+}
+```
+
+</CodeGroup>
+
+## Complete Workflow Example
+
+Here's a complete example showing model training followed by audio synthesis:
+
+```javascript Complete Example
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+
+// Step 1: Train voice model
+const trainResponse = await fetch('http://127.0.0.1:18180/v1/preprocess_and_tran', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    format: 'wav',
+    reference_audio: 'origin_audio/my_voice.wav',
+    lang: 'en'
+  })
+});
+
+const voiceModel = await trainResponse.json();
+
+if (voiceModel.code !== 0) {
+  throw new Error('Model training failed');
+}
+
+// Step 2: Generate speech from text
+const synthesisResponse = await fetch('http://127.0.0.1:18180/v1/invoke', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    speaker: uuidv4(),
+    text: 'This is my custom AI voice speaking!',
+    format: 'wav',
+    topP: 0.7,
+    max_new_tokens: 1024,
+    chunk_length: 100,
+    repetition_penalty: 1.2,
+    temperature: 0.7,
+    need_asr: false,
+    streaming: false,
+    is_fixed_seed: 0,
+    is_norm: 1,
+    reference_audio: voiceModel.asr_format_audio_url,
+    reference_text: voiceModel.reference_audio_text
+  })
+});
+
+const audioBuffer = await synthesisResponse.arrayBuffer();
+fs.writeFileSync('my_speech.wav', Buffer.from(audioBuffer));
+
+console.log('Speech audio generated: my_speech.wav');
+```
+
+## Parameter Tuning Guide
+
+<AccordionGroup>
+  <Accordion title="Temperature (0.7 recommended)">
+    Controls the randomness of the generation:
+    
+    - **Lower (0.3-0.5)**: More consistent, less varied speech
+    - **Medium (0.7)**: Balanced, natural-sounding speech (recommended)
+    - **Higher (0.9-1.5)**: More varied, potentially less consistent
+  </Accordion>
+  
+  <Accordion title="Top-P (0.7 recommended)">
+    Controls the diversity of word choices:
+    
+    - **Lower (0.5)**: More predictable, safer choices
+    - **Medium (0.7)**: Good balance (recommended)
+    - **Higher (0.9)**: More creative, potentially unexpected
+  </Accordion>
+  
+  <Accordion title="Repetition Penalty (1.2 recommended)">
+    Prevents phrase repetition:
+    
+    - **Lower (1.0)**: Allows repetition
+    - **Medium (1.2)**: Balanced (recommended)
+    - **Higher (1.5-2.0)**: Strongly discourages repetition
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+<Warning>
+Common error scenarios and solutions:
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Invalid Reference Audio">
+    **Error**: Reference audio URL not found
+    
+    **Solution**: Verify that the `reference_audio` value matches exactly what was returned from the model training endpoint.
+  </Accordion>
+  
+  <Accordion title="Text Too Long">
+    **Error**: Text exceeds token limit
+    
+    **Solution**: Break long text into smaller chunks and synthesize each separately, then concatenate the audio files.
+  </Accordion>
+  
+  <Accordion title="Service Timeout">
+    **Error**: Request timeout
+    
+    **Solution**: Synthesis of very long text may take time. Increase your HTTP client timeout or break text into smaller chunks.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Video Synthesis" icon="video" href="/api/video-synthesis">
+    Combine your generated audio with video to create lip-synced avatars
+  </Card>
+  <Card title="Basic Workflow" icon="circle-play" href="/api/examples/basic-workflow">
+    See the complete end-to-end workflow
+  </Card>
+</CardGroup>

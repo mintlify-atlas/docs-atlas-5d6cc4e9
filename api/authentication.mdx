@@ -1,0 +1,233 @@
+---
+title: Authentication
+description: Security and access control for Duix Avatar local APIs
+---
+
+## Overview
+
+Duix Avatar APIs are designed for **local-only access** with no authentication required. This design ensures complete privacy and offline functionality while simplifying the development experience.
+
+<Note>
+No API keys, tokens, or authentication headers are needed. All APIs are accessible directly via HTTP requests to `localhost`.
+</Note>
+
+## Local-Only Architecture
+
+All Duix Avatar services run entirely on your local machine:
+
+- **No internet connection required** for core functionality
+- **No data leaves your machine** during avatar creation and video synthesis
+- **Complete privacy** for your voice models and video content
+
+<Info>
+This offline-first approach means you can create and synthesize videos in a completely secure, air-gapped environment.
+</Info>
+
+## Service Ports
+
+The following ports are exposed on `127.0.0.1` (localhost only):
+
+<ParamField path="Port 18180" type="TTS Service">
+  Handles voice model training and audio synthesis operations
+  
+  **Base URL**: `http://127.0.0.1:18180`
+  
+  **Endpoints**:
+  - `/v1/preprocess_and_tran` - Model training and preprocessing
+  - `/v1/invoke` - Audio synthesis from text
+</ParamField>
+
+<ParamField path="Port 8383" type="Face2Face Service">
+  Manages video synthesis and lip-sync generation
+  
+  **Base URL**: `http://127.0.0.1:8383`
+  
+  **Endpoints**:
+  - `/easy/submit` - Submit video synthesis job
+  - `/easy/query` - Query synthesis progress and results
+</ParamField>
+
+<ParamField path="Port 10095" type="ASR Service">
+  Automatic Speech Recognition service (used internally)
+  
+  **Base URL**: `http://127.0.0.1:10095`
+  
+  <Note>
+  This service is primarily used internally by the TTS service and typically doesn't require direct access.
+  </Note>
+</ParamField>
+
+## Making API Requests
+
+Since no authentication is required, you can make direct HTTP requests:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://127.0.0.1:18180/v1/invoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "speaker": "unique-uuid",
+    "text": "Hello, this is a test",
+    "format": "wav"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://127.0.0.1:18180/v1/invoke', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    speaker: 'unique-uuid',
+    text: 'Hello, this is a test',
+    format: 'wav'
+  })
+});
+
+const audioBuffer = await response.arrayBuffer();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://127.0.0.1:18180/v1/invoke',
+    json={
+        'speaker': 'unique-uuid',
+        'text': 'Hello, this is a test',
+        'format': 'wav'
+    }
+)
+
+audio_data = response.content
+```
+
+```go Go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "net/http"
+)
+
+func main() {
+    payload := map[string]interface{}{
+        "speaker": "unique-uuid",
+        "text":    "Hello, this is a test",
+        "format":  "wav",
+    }
+    
+    jsonData, _ := json.Marshal(payload)
+    resp, _ := http.Post(
+        "http://127.0.0.1:18180/v1/invoke",
+        "application/json",
+        bytes.NewBuffer(jsonData),
+    )
+    defer resp.Body.Close()
+}
+```
+
+</CodeGroup>
+
+## Security Considerations
+
+<Warning>
+While no authentication is required for local access, consider these security best practices:
+</Warning>
+
+### Network Access
+
+- Services bind to `127.0.0.1` (localhost) by default
+- **Do not expose these ports** to your network or the internet
+- Use firewall rules to restrict access if needed
+
+### Production Deployment
+
+If you need to deploy these APIs in a production environment:
+
+<Steps>
+  <Step title="Add Authentication Layer">
+    Implement a reverse proxy (nginx, Caddy) with API key authentication
+  </Step>
+  
+  <Step title="Enable HTTPS">
+    Use TLS certificates to encrypt traffic between clients and the proxy
+  </Step>
+  
+  <Step title="Rate Limiting">
+    Add rate limiting to prevent abuse and resource exhaustion
+  </Step>
+  
+  <Step title="Access Control">
+    Implement IP whitelisting or VPN access for authorized users only
+  </Step>
+</Steps>
+
+## CORS Configuration
+
+For local web applications, you may need to handle CORS (Cross-Origin Resource Sharing):
+
+<Tip>
+If you're building a web frontend, run it on the same localhost or configure your development server to proxy API requests.
+</Tip>
+
+Example proxy configuration for Vite:
+
+```javascript vite.config.js
+export default {
+  server: {
+    proxy: {
+      '/api/tts': {
+        target: 'http://127.0.0.1:18180',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tts/, '')
+      },
+      '/api/video': {
+        target: 'http://127.0.0.1:8383',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/video/, '')
+      }
+    }
+  }
+}
+```
+
+## Verifying Service Availability
+
+Before making API calls, verify that services are running:
+
+<CodeGroup>
+
+```bash Docker
+# Check running containers
+docker ps
+
+# Should show three services:
+# - guiji2025/duix.avatar (port 8383)
+# - guiji2025/fish-speech-ziming (port 18180)
+# - guiji2025/fun-asr (port 10095)
+```
+
+```bash Health Check
+# Test TTS service
+curl http://127.0.0.1:18180/health
+
+# Test Face2Face service
+curl http://127.0.0.1:8383/health
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Training" icon="graduation-cap" href="/api/model-training">
+    Start training your first voice model
+  </Card>
+  <Card title="Basic Workflow" icon="circle-play" href="/api/examples/basic-workflow">
+    Follow a complete end-to-end example
+  </Card>
+</CardGroup>

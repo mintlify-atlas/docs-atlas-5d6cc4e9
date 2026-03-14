@@ -1,0 +1,556 @@
+---
+title: Basic Workflow
+description: Complete end-to-end example from model training to video generation
+---
+
+## Overview
+
+This guide walks through a complete workflow for creating an AI avatar video using the Duix Avatar APIs. You'll learn how to:
+
+1. Prepare and upload training data
+2. Train a voice model
+3. Generate speech from text
+4. Synthesize a lip-synced video
+
+<Note>
+Estimated time: 15-20 minutes (including processing time)
+</Note>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Docker Services Running">
+    Ensure all three Docker services are running:
+    
+    ```bash
+    cd deploy
+    docker-compose up -d
+    docker ps  # Verify all containers are running
+    ```
+  </Step>
+  
+  <Step title="Prepare Training Materials">
+    You'll need:
+    - A **video file** (MP4 format, 10-30 seconds) of the person speaking
+    - **OR** an **audio file** (WAV format, 10-30 seconds) with clear speech
+  </Step>
+  
+  <Step title="Install Dependencies">
+    For this example, we'll use Node.js:
+    
+    ```bash
+    npm install uuid node-fetch
+    ```
+  </Step>
+</Steps>
+
+## Step 1: Prepare Training Data
+
+First, we need to prepare the training audio. If you have a video file, extract the audio first:
+
+<CodeGroup>
+
+```bash Extract Audio (FFmpeg)
+# Install FFmpeg if not already installed
+# Windows: choco install ffmpeg
+# Linux: sudo apt install ffmpeg
+
+# Extract audio from video
+ffmpeg -i input_video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 my_voice.wav
+```
+
+```bash Separate Video and Audio
+# Extract audio
+ffmpeg -i input_video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav
+
+# Extract video without audio
+ffmpeg -i input_video.mp4 -an -vcodec copy silent_video.mp4
+```
+
+</CodeGroup>
+
+### Place Files in Correct Directories
+
+<Tabs>
+  <Tab title="Windows">
+    ```bash
+    # Create directories if they don't exist
+    mkdir -p D:\duix_avatar_data\voice\data\origin_audio
+    mkdir -p D:\duix_avatar_data\face2face\temp
+    
+    # Copy audio for training
+    copy my_voice.wav D:\duix_avatar_data\voice\data\origin_audio\
+    
+    # Copy video for synthesis
+    copy silent_video.mp4 D:\duix_avatar_data\face2face\temp\
+    ```
+  </Tab>
+  
+  <Tab title="Linux">
+    ```bash
+    # Create directories if they don't exist
+    mkdir -p ~/duix_avatar_data/voice/data/origin_audio
+    mkdir -p ~/duix_avatar_data/face2face/temp
+    
+    # Copy audio for training
+    cp my_voice.wav ~/duix_avatar_data/voice/data/origin_audio/
+    
+    # Copy video for synthesis
+    cp silent_video.mp4 ~/duix_avatar_data/face2face/temp/
+    ```
+  </Tab>
+</Tabs>
+
+## Step 2: Train Voice Model
+
+Now we'll train a voice model from the audio sample:
+
+```javascript train-model.js
+import fetch from 'node-fetch';
+import fs from 'fs';
+
+// Configuration
+const AUDIO_FILENAME = 'my_voice.wav';
+const LANGUAGE = 'en'; // Change to 'zh', 'ja', 'ko', 'fr', 'de', 'ar', or 'es' as needed
+
+// Step 1: Train voice model
+async function trainVoiceModel() {
+  console.log('Training voice model...');
+  
+  const response = await fetch('http://127.0.0.1:18180/v1/preprocess_and_tran', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      format: AUDIO_FILENAME.split('.').pop(),
+      reference_audio: `origin_audio/${AUDIO_FILENAME}`,
+      lang: LANGUAGE
+    })
+  });
+  
+  const result = await response.json();
+  
+  if (result.code !== 0) {
+    throw new Error(`Training failed: ${JSON.stringify(result)}`);
+  }
+  
+  console.log('✅ Voice model trained successfully!');
+  console.log(`   Transcribed text: "${result.reference_audio_text}"`);
+  
+  // Save voice model for later use
+  const voiceModel = {
+    id: Date.now(),
+    asr_format_audio_url: result.asr_format_audio_url,
+    reference_audio_text: result.reference_audio_text,
+    created_at: new Date().toISOString()
+  };
+  
+  fs.writeFileSync('voice-model.json', JSON.stringify(voiceModel, null, 2));
+  console.log('   Model saved to: voice-model.json');
+  
+  return voiceModel;
+}
+
+// Run training
+trainVoiceModel()
+  .then(() => console.log('\nTraining complete! Proceed to Step 3: Generate Audio'))
+  .catch(error => console.error('Error:', error.message));
+```
+
+Run the script:
+
+```bash
+node train-model.js
+```
+
+Expected output:
+```
+Training voice model...
+✅ Voice model trained successfully!
+   Transcribed text: "Hello, this is a sample of my voice for training."
+   Model saved to: voice-model.json
+
+Training complete! Proceed to Step 3: Generate Audio
+```
+
+## Step 3: Generate Speech Audio
+
+Use the trained model to generate speech from text:
+
+```javascript generate-audio.js
+import fetch from 'node-fetch';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+
+// Load voice model from previous step
+const voiceModel = JSON.parse(fs.readFileSync('voice-model.json', 'utf8'));
+
+// Text to speak
+const TEXT_TO_SPEAK = `
+Welcome to Duix Avatar! This is a demonstration of AI-powered voice synthesis 
+and video generation. You can create realistic avatar videos with just a few 
+simple API calls.
+`.trim();
+
+async function generateAudio() {
+  console.log('Generating speech audio...');
+  console.log(`Text: "${TEXT_TO_SPEAK.substring(0, 80)}..."`);
+  
+  const response = await fetch('http://127.0.0.1:18180/v1/invoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      speaker: uuidv4(),
+      text: TEXT_TO_SPEAK,
+      format: 'wav',
+      topP: 0.7,
+      max_new_tokens: 1024,
+      chunk_length: 100,
+      repetition_penalty: 1.2,
+      temperature: 0.7,
+      need_asr: false,
+      streaming: false,
+      is_fixed_seed: 0,
+      is_norm: 1,
+      reference_audio: voiceModel.asr_format_audio_url,
+      reference_text: voiceModel.reference_audio_text
+    })
+  });
+  
+  const audioBuffer = await response.arrayBuffer();
+  const audioFilename = `generated_audio_${Date.now()}.wav`;
+  
+  fs.writeFileSync(audioFilename, Buffer.from(audioBuffer));
+  console.log(`✅ Audio generated: ${audioFilename}`);
+  
+  // Save audio filename for next step
+  fs.writeFileSync('audio-path.txt', audioFilename);
+  
+  return audioFilename;
+}
+
+generateAudio()
+  .then(() => console.log('\nAudio generation complete! Proceed to Step 4: Synthesize Video'))
+  .catch(error => console.error('Error:', error.message));
+```
+
+Run the script:
+
+```bash
+node generate-audio.js
+```
+
+Expected output:
+```
+Generating speech audio...
+Text: "Welcome to Duix Avatar! This is a demonstration of AI-powered voice synth..."
+✅ Audio generated: generated_audio_1710501234567.wav
+
+Audio generation complete! Proceed to Step 4: Synthesize Video
+```
+
+## Step 4: Synthesize Video
+
+Finally, combine the audio with video to create a lip-synced avatar:
+
+```javascript synthesize-video.js
+import fetch from 'node-fetch';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+
+// Configuration
+const AUDIO_FILENAME = fs.readFileSync('audio-path.txt', 'utf8').trim();
+const VIDEO_FILENAME = 'silent_video.mp4'; // Must be in D:\duix_avatar_data\face2face\temp\
+
+async function synthesizeVideo() {
+  const taskCode = uuidv4();
+  
+  console.log('Submitting video synthesis job...');
+  console.log(`  Task ID: ${taskCode}`);
+  console.log(`  Audio: ${AUDIO_FILENAME}`);
+  console.log(`  Video: ${VIDEO_FILENAME}`);
+  
+  // Step 1: Submit job
+  const submitResponse = await fetch('http://127.0.0.1:8383/easy/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      audio_url: AUDIO_FILENAME,
+      video_url: VIDEO_FILENAME,
+      code: taskCode,
+      chaofen: 0,
+      watermark_switch: 0,
+      pn: 1
+    })
+  });
+  
+  const submitResult = await submitResponse.json();
+  
+  if (submitResult.code !== 10000) {
+    throw new Error(`Failed to submit job: ${submitResult.msg}`);
+  }
+  
+  console.log('✅ Job submitted successfully!');
+  console.log('\nProcessing video...');
+  
+  // Step 2: Poll for completion
+  return new Promise((resolve, reject) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await fetch(
+          `http://127.0.0.1:8383/easy/query?code=${taskCode}`
+        );
+        const statusResult = await statusResponse.json();
+        
+        if (statusResult.code === 10000) {
+          const { status, progress, result, msg } = statusResult.data;
+          
+          if (status === 1) {
+            // Processing
+            process.stdout.write(`\r  Progress: ${progress} - ${msg}`);
+          } else if (status === 2) {
+            // Success
+            clearInterval(pollInterval);
+            console.log('\n\n✅ Video synthesis completed!');
+            console.log(`   Output: ${result}`);
+            console.log(`   Full path: D:\\duix_avatar_data\\face2face\\temp\\${result}`);
+            resolve(result);
+          } else if (status === 3) {
+            // Failed
+            clearInterval(pollInterval);
+            reject(new Error(`Synthesis failed: ${msg}`));
+          }
+        } else {
+          clearInterval(pollInterval);
+          reject(new Error(`Query failed: ${statusResult.msg}`));
+        }
+      } catch (error) {
+        clearInterval(pollInterval);
+        reject(error);
+      }
+    }, 2000); // Poll every 2 seconds
+  });
+}
+
+synthesizeVideo()
+  .then(() => console.log('\n🎉 Workflow complete! Your avatar video is ready.'))
+  .catch(error => console.error('Error:', error.message));
+```
+
+Run the script:
+
+```bash
+node synthesize-video.js
+```
+
+Expected output:
+```
+Submitting video synthesis job...
+  Task ID: 550e8400-e29b-41d4-a716-446655440000
+  Audio: generated_audio_1710501234567.wav
+  Video: silent_video.mp4
+✅ Job submitted successfully!
+
+Processing video...
+  Progress: 15% - Processing frames...
+  Progress: 34% - Generating lip movements...
+  Progress: 67% - Synchronizing audio...
+  Progress: 89% - Finalizing video...
+  Progress: 100% - Complete
+
+✅ Video synthesis completed!
+   Output: output/video_1710501234567.mp4
+   Full path: D:\duix_avatar_data\face2face\temp\output\video_1710501234567.mp4
+
+🎉 Workflow complete! Your avatar video is ready.
+```
+
+## Complete All-in-One Script
+
+Here's a complete script that runs the entire workflow:
+
+```javascript complete-workflow.js
+import fetch from 'node-fetch';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+
+// Configuration
+const CONFIG = {
+  audioFile: 'my_voice.wav',
+  videoFile: 'silent_video.mp4',
+  language: 'en',
+  textToSpeak: 'Welcome to Duix Avatar! This AI-powered platform creates amazing avatar videos.'
+};
+
+async function runCompleteWorkflow() {
+  try {
+    // Step 1: Train voice model
+    console.log('\n📚 Step 1: Training voice model...');
+    const trainResponse = await fetch('http://127.0.0.1:18180/v1/preprocess_and_tran', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        format: CONFIG.audioFile.split('.').pop(),
+        reference_audio: `origin_audio/${CONFIG.audioFile}`,
+        lang: CONFIG.language
+      })
+    });
+    
+    const voiceModel = await trainResponse.json();
+    
+    if (voiceModel.code !== 0) {
+      throw new Error(`Training failed: ${JSON.stringify(voiceModel)}`);
+    }
+    
+    console.log('✅ Voice model trained');
+    console.log(`   Transcription: "${voiceModel.reference_audio_text}"`);
+    
+    // Step 2: Generate audio
+    console.log('\n🎤 Step 2: Generating speech audio...');
+    const audioResponse = await fetch('http://127.0.0.1:18180/v1/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        speaker: uuidv4(),
+        text: CONFIG.textToSpeak,
+        format: 'wav',
+        topP: 0.7,
+        max_new_tokens: 1024,
+        chunk_length: 100,
+        repetition_penalty: 1.2,
+        temperature: 0.7,
+        need_asr: false,
+        streaming: false,
+        is_fixed_seed: 0,
+        is_norm: 1,
+        reference_audio: voiceModel.asr_format_audio_url,
+        reference_text: voiceModel.reference_audio_text
+      })
+    });
+    
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const audioFilename = `audio_${Date.now()}.wav`;
+    fs.writeFileSync(audioFilename, Buffer.from(audioBuffer));
+    
+    console.log(`✅ Audio generated: ${audioFilename}`);
+    
+    // Step 3: Synthesize video
+    console.log('\n🎬 Step 3: Synthesizing video...');
+    const taskCode = uuidv4();
+    
+    const submitResponse = await fetch('http://127.0.0.1:8383/easy/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audio_url: audioFilename,
+        video_url: CONFIG.videoFile,
+        code: taskCode,
+        chaofen: 0,
+        watermark_switch: 0,
+        pn: 1
+      })
+    });
+    
+    const submitResult = await submitResponse.json();
+    
+    if (submitResult.code !== 10000) {
+      throw new Error(`Failed to submit: ${submitResult.msg}`);
+    }
+    
+    console.log('✅ Job submitted');
+    console.log('   Processing (this may take a few minutes)...');
+    
+    // Step 4: Poll for completion
+    const result = await new Promise((resolve, reject) => {
+      const pollInterval = setInterval(async () => {
+        const statusResponse = await fetch(
+          `http://127.0.0.1:8383/easy/query?code=${taskCode}`
+        );
+        const statusResult = await statusResponse.json();
+        
+        if (statusResult.code === 10000) {
+          const { status, progress, result, msg } = statusResult.data;
+          
+          if (status === 1) {
+            process.stdout.write(`\r   Progress: ${progress}`);
+          } else if (status === 2) {
+            clearInterval(pollInterval);
+            console.log('\n✅ Video synthesis completed!');
+            resolve(result);
+          } else if (status === 3) {
+            clearInterval(pollInterval);
+            reject(new Error(`Failed: ${msg}`));
+          }
+        }
+      }, 2000);
+    });
+    
+    console.log('\n🎉 Success! Your avatar video is ready!');
+    console.log(`   Output: ${result}`);
+    console.log(`   Location: D:\\duix_avatar_data\\face2face\\temp\\${result}`);
+    
+  } catch (error) {
+    console.error('\n❌ Error:', error.message);
+    process.exit(1);
+  }
+}
+
+runCompleteWorkflow();
+```
+
+Run the complete workflow:
+
+```bash
+node complete-workflow.js
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Training fails: Audio file not found">
+    **Solution**: Verify the audio file is in the correct directory:
+    
+    ```bash
+    # Windows
+    dir D:\duix_avatar_data\voice\data\origin_audio
+    
+    # Linux
+    ls ~/duix_avatar_data/voice/data/origin_audio
+    ```
+  </Accordion>
+  
+  <Accordion title="Video synthesis fails: Duration mismatch">
+    **Solution**: Ensure audio duration doesn't exceed video duration. You can:
+    
+    - Use shorter text for synthesis
+    - Use a longer source video
+    - Loop the video to match audio length
+  </Accordion>
+  
+  <Accordion title="Connection refused errors">
+    **Solution**: Verify Docker services are running:
+    
+    ```bash
+    docker ps
+    # Should show 3 services running
+    ```
+  </Accordion>
+  
+  <Accordion title="Poor audio quality">
+    **Solution**: Use higher quality training audio:
+    
+    - Minimum 16kHz sample rate
+    - Clear speech with minimal background noise
+    - 10-30 seconds of natural speech
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Integration" icon="code" href="/api/examples/custom-integration">
+    Learn how to integrate into your own application
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/introduction">
+    Explore all available API endpoints
+  </Card>
+</CardGroup>

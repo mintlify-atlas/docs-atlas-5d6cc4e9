@@ -1,0 +1,201 @@
+---
+title: Voice Cloning
+description: Train and synthesize custom voices for your avatars
+---
+
+## Overview
+
+Duix's voice cloning system allows you to train custom voice models from audio samples and generate speech in those voices. The voice training is automatically initiated when creating an avatar, but you can also work with voices independently.
+
+## Voice Training Process
+
+The `train()` function in `src/main/service/voice.js:17` handles the voice training workflow.
+
+<Steps>
+  <Step title="Audio Preprocessing">
+    The audio file path is normalized and sent to the TTS service for preprocessing:
+    
+    ```javascript
+    path = path.replace(/\\/g, '/') // Normalize path separators
+    ```
+    
+    **API Endpoint:** `/v1/preprocess_and_tran`
+  </Step>
+
+  <Step title="Format Detection">
+    The system automatically detects the audio format from the file extension:
+    
+    ```javascript
+    format: path.split('.').pop()
+    ```
+    
+    Supported formats include WAV and other common audio formats.
+  </Step>
+
+  <Step title="ASR Processing">
+    The TTS service performs Automatic Speech Recognition (ASR) and returns:
+    
+    - `asr_format_audio_url`: Formatted audio URL for future synthesis
+    - `reference_audio_text`: Transcribed text from the audio
+    
+    <Info>
+      These values are stored in the voice database and used for all future audio generation.
+    </Info>
+  </Step>
+
+  <Step title="Database Storage">
+    The trained voice model is stored with:
+    
+    - Original audio path
+    - Language code (e.g., `zh` for Chinese)
+    - ASR formatted audio URL
+    - Reference audio text
+    
+    Returns a unique voice ID for future reference.
+  </Step>
+</Steps>
+
+## Language Support
+
+The `train()` function accepts a `lang` parameter for language selection:
+
+<CodeGroup>
+```javascript Default (Chinese)
+train('path/to/audio.wav', 'zh')
+```
+
+```javascript Custom Language
+train('path/to/audio.wav', 'en') // English
+train('path/to/audio.wav', 'ja') // Japanese
+```
+</CodeGroup>
+
+<Tip>
+  The default language is Chinese (`zh`). Always specify the correct language for optimal voice quality.
+</Tip>
+
+## Audio Synthesis
+
+Once a voice is trained, you can generate speech using the `makeAudio()` function.
+
+### Synthesis Parameters
+
+The `makeAudio()` function in `src/main/service/voice.js:46` accepts:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `voiceId` | number | ID of the trained voice model |
+| `text` | string | Text to synthesize into speech |
+| `targetDir` | string | Directory to save generated audio |
+
+### Advanced Configuration
+
+The synthesis uses these parameters sent to the TTS API:
+
+```javascript
+{
+  topP: 0.7,
+  max_new_tokens: 1024,
+  chunk_length: 100,
+  repetition_penalty: 1.2,
+  temperature: 0.7,
+  need_asr: false,
+  streaming: false,
+  is_fixed_seed: 0,
+  is_norm: 1
+}
+```
+
+<Accordion title="Parameter Explanations">
+  - **topP**: Controls diversity in generation (0.7 = balanced)
+  - **temperature**: Controls randomness (0.7 = moderately creative)
+  - **max_new_tokens**: Maximum length of generated audio
+  - **repetition_penalty**: Prevents repetitive speech patterns (1.2 = moderate penalty)
+  - **chunk_length**: Size of processing chunks (100 characters)
+  - **is_norm**: Audio normalization (1 = enabled)
+</Accordion>
+
+## Voice Audition
+
+Test a trained voice before using it in production:
+
+```javascript
+audition(voiceId, text)
+```
+
+**IPC Handler:** `voice/audition`
+
+This function:
+1. Generates audio in the system's temporary directory
+2. Returns the full path to the generated audio file
+3. Allows you to preview the voice quality
+
+<Info>
+  Audition files are stored in the OS temporary directory and can be deleted after playback.
+</Info>
+
+## Voice Management
+
+### Retrieve All Voices
+
+```javascript
+getAllTimbre()
+```
+
+Returns all trained voice models from the database.
+
+### Get Specific Voice
+
+```javascript
+selectByID(voiceId)
+```
+
+Retrieve details for a specific voice model, including:
+- ASR formatted audio URL
+- Reference audio text
+- Original audio path
+- Language code
+
+## Integration with Video Synthesis
+
+Voices are automatically used in video synthesis:
+
+<CardGroup cols={2}>
+  <Card title="makeAudio4Video" icon="video">
+    Generates audio specifically for video synthesis
+    
+    **Function:** `src/main/service/voice.js:33`
+  </Card>
+  
+  <Card title="copyAudio4Video" icon="copy">
+    Copies existing audio files for use in video projects
+    
+    **Function:** `src/main/service/voice.js:37`
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+<Warning>
+  If training fails (API returns `code !== 0`), the function returns `false`. Always check the return value:
+  
+  ```javascript
+  const voiceId = await train(audioPath, 'zh')
+  if (voiceId === false) {
+    // Handle training failure
+  }
+  ```
+</Warning>
+
+## Best Practices
+
+1. **Audio Quality**: Use high-quality WAV files for best training results
+2. **Language Matching**: Ensure the audio language matches the `lang` parameter
+3. **Text Length**: Keep synthesis text under 1000 characters for optimal performance
+4. **Voice Testing**: Always use `audition()` to test voices before production use
+
+## Next Steps
+
+- [Create avatars with trained voices](/guides/creating-avatar)
+- [Generate videos using voice synthesis](/guides/video-synthesis)
+- [Manage voice models and avatars](/guides/managing-models)

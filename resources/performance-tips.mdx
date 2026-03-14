@@ -1,0 +1,573 @@
+---
+title: 'Performance Optimization'
+description: 'Tips and best practices for optimal performance'
+icon: 'gauge-high'
+---
+
+## Hardware Recommendations
+
+Choosing the right hardware is critical for optimal Duix Avatar performance. All AI processing happens locally, so your system specifications directly impact generation speed and quality.
+
+### Recommended Configuration
+
+<CardGroup cols={2}>
+  <Card title="GPU" icon="microchip">
+    **NVIDIA RTX 4070 or better**
+    - RTX 4070/4080/4090 for best performance
+    - RTX 3070/3080/3090 acceptable
+    - NVIDIA 50 series (5090) now supported
+    - Minimum 8GB VRAM
+  </Card>
+  
+  <Card title="Memory" icon="memory">
+    **32GB RAM (Required)**
+    - 32GB minimum for full version
+    - 16GB insufficient for all services
+    - 64GB ideal for large projects
+    - Fast DDR4/DDR5 recommended
+  </Card>
+  
+  <Card title="CPU" icon="cpu">
+    **Intel Core i5-13400F or better**
+    - 13th gen Intel Core i5/i7/i9
+    - AMD Ryzen 5/7/9 equivalent
+    - 6+ cores recommended
+    - Modern architecture preferred
+  </Card>
+  
+  <Card title="Storage" icon="hard-drive">
+    **100GB+ SSD**
+    - NVMe SSD for best performance
+    - 100GB+ on C drive (Windows)
+    - 30GB+ on D drive (Windows data)
+    - Fast read/write speeds improve loading
+  </Card>
+</CardGroup>
+
+### Minimum vs. Recommended
+
+| Component | Minimum | Recommended | Optimal |
+|-----------|---------|-------------|----------|
+| **GPU** | GTX 1660 Super (6GB) | RTX 4070 (12GB) | RTX 4090 (24GB) |
+| **RAM** | 16GB | 32GB | 64GB |
+| **CPU** | i5-10400F | i5-13400F | i9-13900K |
+| **Storage** | 100GB HDD | 250GB SSD | 1TB NVMe SSD |
+| **VRAM** | 6GB | 12GB | 24GB |
+
+<Warning>
+  16GB RAM systems may struggle to run all three Docker services simultaneously. Consider using the lite version or upgrading to 32GB.
+</Warning>
+
+---
+
+## GPU Optimization
+
+### Driver Updates
+
+Keep your NVIDIA drivers up to date for best performance and compatibility:
+
+<Steps>
+  <Step title="Check Current Driver">
+    **Windows:**
+    ```bash
+    nvidia-smi
+    ```
+    
+    **Linux:**
+    ```bash
+    nvidia-smi
+    ```
+    
+    Note your current driver version.
+  </Step>
+  
+  <Step title="Download Latest Driver">
+    Visit [NVIDIA Driver Downloads](https://www.nvidia.cn/drivers/lookup/)
+    
+    - Select your GPU model
+    - Choose your operating system
+    - Download the latest Game Ready or Studio driver
+  </Step>
+  
+  <Step title="Install and Restart">
+    - Run the installer
+    - Choose "Custom Installation" for clean install option
+    - Restart your computer after installation
+  </Step>
+</Steps>
+
+### NVIDIA 50 Series Support
+
+The latest version supports NVIDIA 50 series GPUs (tested on RTX 5090):
+
+<Info>
+  The 50 series deployment uses CUDA 12.8 with PyTorch preview builds. This also works well with 30/40 series cards.
+</Info>
+
+**Benefits:**
+- Native support for latest GPU architecture
+- Improved performance on newer cards
+- Future-proof deployment
+
+**Setup:**
+Follow the [Server Deployment Solution for NVIDIA 50 Series Graphics Cards](https://github.com/duixcom/Duix.Avatar#server-deployment-solution-for-nvidia-50-series-graphics-cards) in the main documentation.
+
+### GPU Utilization Tips
+
+<AccordionGroup>
+  <Accordion title="Close GPU-Intensive Applications">
+    Before running Duix Avatar:
+    
+    - Close games and 3D applications
+    - Stop video rendering software
+    - Disable GPU-accelerated browsers (or close them)
+    - Exit cryptocurrency miners
+    - Close other AI/ML applications
+    
+    Monitor GPU usage:
+    - **Windows:** Task Manager → Performance → GPU
+    - **Linux:** `nvidia-smi` or `watch -n 1 nvidia-smi`
+  </Accordion>
+
+  <Accordion title="Optimize Power Settings">
+    **Windows:**
+    1. Control Panel → Power Options
+    2. Select "High Performance" power plan
+    3. NVIDIA Control Panel → Manage 3D Settings
+    4. Power management mode: "Prefer maximum performance"
+    
+    **Linux:**
+    ```bash
+    # Set GPU to maximum performance
+    sudo nvidia-smi -pm 1
+    sudo nvidia-smi -pl 350  # Adjust wattage for your card
+    ```
+  </Accordion>
+
+  <Accordion title="Monitor Temperature and Throttling">
+    High GPU temperatures can cause thermal throttling:
+    
+    **Check temperature:**
+    ```bash
+    nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader
+    ```
+    
+    **Optimal temperatures:**
+    - Under 75°C: Excellent
+    - 75-83°C: Good
+    - 83-90°C: Monitor closely
+    - Above 90°C: Improve cooling
+    
+    **Solutions:**
+    - Clean dust from GPU fans and heatsink
+    - Improve case airflow
+    - Adjust fan curves in MSI Afterburner
+    - Consider aftermarket cooling
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Memory Management
+
+### System RAM Optimization
+
+<CardGroup cols={2}>
+  <Card title="Close Unnecessary Apps" icon="window-minimize">
+    Free up RAM by closing:
+    - Web browsers with many tabs
+    - Office applications
+    - Communication apps (if not needed)
+    - Background processes
+  </Card>
+  
+  <Card title="Disable Startup Programs" icon="power-off">
+    **Windows:**
+    Task Manager → Startup → Disable unused programs
+    
+    **Linux:**
+    System Settings → Applications → Startup
+  </Card>
+  
+  <Card title="Increase Virtual Memory" icon="arrows-rotate">
+    **Windows (if using 16GB RAM):**
+    1. System Properties → Advanced
+    2. Performance Settings → Advanced
+    3. Virtual Memory → Change
+    4. Set custom size: 16384-32768 MB
+  </Card>
+  
+  <Card title="Monitor Usage" icon="chart-line">
+    **Windows:** Task Manager → Performance → Memory
+    
+    **Linux:**
+    ```bash
+    free -h
+    htop
+    ```
+  </Card>
+</CardGroup>
+
+### Docker Memory Allocation
+
+Adjust Docker's memory limits for optimal performance:
+
+**Docker Desktop:**
+1. Settings → Resources → Advanced
+2. **Memory:** Allocate at least 16GB (for 32GB systems)
+3. **Swap:** 2-4GB recommended
+4. Apply & Restart
+
+<Info>
+  If you have 32GB system RAM, allocate 16-20GB to Docker. Leave enough for the operating system and client application.
+</Info>
+
+---
+
+## Storage Optimization
+
+### SSD vs HDD Performance
+
+| Operation | HDD | SATA SSD | NVMe SSD |
+|-----------|-----|----------|----------|
+| Docker image loading | Slow | Fast | Fastest |
+| Avatar training | 5-10 min | 3-5 min | 2-3 min |
+| Video generation | Medium | Fast | Fastest |
+| Model loading | Slow | Fast | Instant |
+
+**Recommendations:**
+- Install Docker images on SSD
+- Store avatar data on SSD if possible
+- NVMe SSD provides best performance
+- Keep at least 20% free space for optimal SSD performance
+
+### Disk Space Management
+
+<AccordionGroup>
+  <Accordion title="Windows: Change Docker Storage Location">
+    If C drive is running low on space:
+    
+    1. Docker Desktop → Settings → Resources → Advanced
+    2. **Disk image location:** Browse to drive with more space (e.g., D:\Docker)
+    3. Apply & Restart (this will move all Docker data)
+  </Accordion>
+
+  <Accordion title="Clean Up Docker Resources">
+    Regularly clean unused Docker resources:
+    
+    ```bash
+    # Remove unused images
+    docker image prune -a
+    
+    # Remove stopped containers
+    docker container prune
+    
+    # Remove unused volumes
+    docker volume prune
+    
+    # See disk usage
+    docker system df
+    ```
+    
+    <Warning>
+      `docker system prune -a` removes ALL unused resources. Use with caution.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Manage Avatar Data">
+    Avatar and project data is stored in:
+    - **Windows:** `D:\duix_avatar_data`
+    - **Linux:** As configured in docker-compose
+    
+    Regularly delete old or unused avatars to free space.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Network Optimization
+
+### Docker Image Downloads
+
+Large Docker images (~70GB) require optimization:
+
+<Steps>
+  <Step title="Use Wired Connection">
+    - Ethernet is faster and more stable than WiFi
+    - Download can take 30-60 minutes depending on connection
+    - Ensure unlimited data plan (70GB download)
+  </Step>
+  
+  <Step title="Configure Registry Mirrors">
+    For users in China or with slow Docker Hub access, use mirror registries:
+    
+    See [Troubleshooting - Docker Connection Issues](/resources/troubleshooting#docker-connection-issues) for configuration.
+  </Step>
+  
+  <Step title="Download During Off-Peak Hours">
+    - Download when network is less congested
+    - Pause other downloads and streaming
+    - Disable auto-updates during download
+  </Step>
+</Steps>
+
+---
+
+## Video Generation Performance
+
+### Input Video Optimization
+
+<CardGroup cols={2}>
+  <Card title="Resolution" icon="image">
+    **Recommended:** 1080p (1920x1080)
+    - Higher resolution = longer processing
+    - 4K significantly slower
+    - 720p acceptable for faster generation
+    - Maintain 16:9 aspect ratio
+  </Card>
+  
+  <Card title="Video Length" icon="clock">
+    **Optimal:** 30 seconds - 2 minutes
+    - Shorter videos process faster
+    - Split long videos into segments
+    - Process in batches if needed
+  </Card>
+  
+  <Card title="Format & Codec" icon="file-video">
+    **Best:**
+    - Format: MP4
+    - Video codec: H.264
+    - Audio codec: AAC
+    - Bitrate: Medium to High
+  </Card>
+  
+  <Card title="Frame Rate" icon="film">
+    **Recommended:** 24-30 FPS
+    - 24/25 FPS for video
+    - 30 FPS acceptable
+    - 60 FPS slower, often unnecessary
+  </Card>
+</CardGroup>
+
+### Audio Optimization
+
+<AccordionGroup>
+  <Accordion title="Audio Quality for Voice Cloning">
+    For best voice cloning results:
+    
+    - **Clear speech:** Minimize background noise
+    - **Sample rate:** 44.1kHz or 48kHz
+    - **Format:** WAV or high-quality MP3/AAC
+    - **Duration:** 30 seconds minimum of speech
+    - **Volume:** Consistent, not too quiet or clipping
+    
+    Use audio editing software to:
+    - Remove background noise
+    - Normalize volume levels
+    - Cut out silent portions
+  </Accordion>
+
+  <Accordion title="Text-to-Speech Optimization">
+    When using TTS:
+    
+    - Shorter text generates faster
+    - Break long scripts into paragraphs
+    - Use proper punctuation for natural pauses
+    - Preview and adjust before final generation
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Service Configuration
+
+### Full vs. Lite Version
+
+**Choose Lite Version if:**
+- Limited to 16GB RAM
+- Using external TTS/ASR services
+- Only need video generation
+- Want faster Docker startup
+
+**Use Full Version for:**
+- Complete offline operation
+- Best quality voice cloning
+- No dependency on external services
+- Professional production work
+
+```bash
+# Lite version
+docker-compose -f docker-compose-lite.yml up -d
+
+# Full version
+docker-compose up -d
+```
+
+### Startup Optimization
+
+<Steps>
+  <Step title="Pre-load Docker Images">
+    Download images before you need them:
+    
+    ```bash
+    docker pull guiji2025/fun-asr
+    docker pull guiji2025/fish-speech-ziming
+    docker pull guiji2025/duix.avatar
+    ```
+  </Step>
+  
+  <Step title="Keep Services Running">
+    For frequent use:
+    - Leave Docker services running
+    - Services stay in memory for instant access
+    - Startup time: 3-5 minutes vs. instant
+  </Step>
+  
+  <Step title="Autostart Configuration">
+    Configure Docker to start services automatically:
+    
+    Docker Desktop → Settings → General → "Start Docker Desktop when you log in"
+  </Step>
+</Steps>
+
+---
+
+## Monitoring Performance
+
+### System Monitoring Tools
+
+<Tabs>
+  <Tab title="Windows">
+    **Task Manager:**
+    - Press `Ctrl+Shift+Esc`
+    - Performance tab shows:
+      - CPU usage
+      - Memory usage
+      - GPU usage
+      - Disk activity
+    
+    **GPU-Z:**
+    - Download from [TechPowerUp](https://www.techpowerup.com/gpuz/)
+    - Detailed GPU monitoring
+    - Temperature and clock speeds
+  </Tab>
+  
+  <Tab title="Linux">
+    **nvidia-smi:**
+    ```bash
+    # Real-time monitoring
+    watch -n 1 nvidia-smi
+    ```
+    
+    **htop:**
+    ```bash
+    sudo apt install htop
+    htop
+    ```
+    
+    **Docker stats:**
+    ```bash
+    docker stats
+    ```
+  </Tab>
+</Tabs>
+
+### Performance Benchmarks
+
+Typical processing times on RTX 4070 with 32GB RAM:
+
+| Task | Duration | Notes |
+|------|----------|-------|
+| Avatar training (1 min video) | 10-15 min | Depends on video quality |
+| Voice cloning | 5-8 min | First-time training |
+| Video generation (30 sec) | 2-3 min | 1080p output |
+| TTS synthesis (100 words) | 10-20 sec | Per audio file |
+
+<Info>
+  These are approximate times. Your actual performance may vary based on specific hardware and settings.
+</Info>
+
+---
+
+## Production Considerations
+
+### When to Use API Services
+
+Consider Duix.com API services if you need:
+
+<CardGroup cols={2}>
+  <Card title="Enterprise SLA" icon="shield">
+    - Guaranteed uptime
+    - Professional support
+    - No hardware maintenance
+    - Scalable infrastructure
+  </Card>
+  
+  <Card title="Higher Quality" icon="star">
+    - Latest models and algorithms
+    - Enhanced lip-sync effects
+    - Higher definition output
+    - Faster processing
+  </Card>
+  
+  <Card title="No Hardware Investment" icon="server">
+    - No GPU purchase needed
+    - No electricity costs
+    - No maintenance overhead
+    - Pay as you go
+  </Card>
+  
+  <Card title="Rapid Development" icon="rocket">
+    - Quick integration
+    - Focus on application logic
+    - Enterprise-grade reliability
+    - Regular updates
+  </Card>
+</CardGroup>
+
+**Comparison:**
+
+| Aspect | Local Deployment | API Service |
+|--------|------------------|-------------|
+| **Cost** | Hardware investment | Pay per use |
+| **Quality** | Good | Excellent |
+| **Speed** | GPU-dependent | Fast, scalable |
+| **Maintenance** | Self-managed | Fully managed |
+| **Privacy** | Fully offline | Cloud-based |
+| **Customization** | Full control | API-limited |
+
+Learn more: [duix.com](https://duix.com) | [API Documentation](https://docs.duix.com/api-reference/api/Introduction)
+
+---
+
+## Quick Performance Checklist
+
+<Steps>
+  <Step title="Hardware">
+    - ✅ NVIDIA GPU with 8GB+ VRAM
+    - ✅ 32GB system RAM
+    - ✅ SSD storage with 100GB+ free
+    - ✅ Modern CPU (i5-13400F or better)
+  </Step>
+  
+  <Step title="Software">
+    - ✅ Latest NVIDIA drivers installed
+    - ✅ Docker services running and healthy
+    - ✅ Latest Duix Avatar version
+    - ✅ Windows/Linux fully updated
+  </Step>
+  
+  <Step title="Configuration">
+    - ✅ Docker allocated 16GB+ RAM
+    - ✅ GPU set to maximum performance
+    - ✅ Background applications closed
+    - ✅ Sufficient disk space available
+  </Step>
+  
+  <Step title="Optimization">
+    - ✅ Input videos optimized (1080p, H.264)
+    - ✅ Audio quality checked
+    - ✅ Proper video length (30sec-2min)
+    - ✅ System monitoring enabled
+  </Step>
+</Steps>

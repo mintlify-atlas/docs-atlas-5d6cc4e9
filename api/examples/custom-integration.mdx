@@ -1,0 +1,686 @@
+---
+title: Custom Integration
+description: Integrate Duix Avatar APIs into your custom applications
+---
+
+## Overview
+
+This guide shows how to integrate the Duix Avatar APIs into various types of applications, including web apps, desktop applications, and backend services. We'll cover best practices, error handling, and production-ready patterns.
+
+<Note>
+All examples assume the Docker services are running locally. For production deployments, see the [Security Considerations](#security-considerations) section.
+</Note>
+
+## SDK / Client Library
+
+Create a reusable client library for interacting with Duix Avatar APIs:
+
+```javascript duix-avatar-client.js
+import fetch from 'node-fetch';
+import { v4 as uuidv4 } from 'uuid';
+
+class DuixAvatarClient {
+  constructor(options = {}) {
+    this.baseUrls = {
+      tts: options.ttsUrl || 'http://127.0.0.1:18180',
+      video: options.videoUrl || 'http://127.0.0.1:8383'
+    };
+    this.timeout = options.timeout || 30000; // 30 seconds default
+  }
+
+  /**
+   * Train a voice model from audio
+   */
+  async trainVoiceModel({ audioPath, language = 'en' }) {
+    const response = await fetch(`${this.baseUrls.tts}/v1/preprocess_and_tran`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        format: audioPath.split('.').pop(),
+        reference_audio: audioPath,
+        lang: language
+      }),
+      signal: AbortSignal.timeout(this.timeout)
+    });
+
+    const result = await response.json();
+
+    if (result.code !== 0) {
+      throw new Error(`Voice model training failed: ${JSON.stringify(result)}`);
+    }
+
+    return {
+      id: uuidv4(),
+      asrFormatAudioUrl: result.asr_format_audio_url,
+      referenceAudioText: result.reference_audio_text,
+      language,
+      createdAt: new Date()
+    };
+  }
+
+  /**
+   * Generate speech audio from text
+   */
+  async synthesizeAudio({ voiceModel, text, options = {} }) {
+    const response = await fetch(`${this.baseUrls.tts}/v1/invoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        speaker: uuidv4(),
+        text,
+        format: 'wav',
+        topP: options.topP || 0.7,
+        max_new_tokens: options.maxNewTokens || 1024,
+        chunk_length: options.chunkLength || 100,
+        repetition_penalty: options.repetitionPenalty || 1.2,
+        temperature: options.temperature || 0.7,
+        need_asr: false,
+        streaming: false,
+        is_fixed_seed: options.isFixedSeed || 0,
+        is_norm: options.isNorm !== undefined ? options.isNorm : 1,
+        reference_audio: voiceModel.asrFormatAudioUrl,
+        reference_text: voiceModel.referenceAudioText
+      }),
+      signal: AbortSignal.timeout(this.timeout)
+    });
+
+    return response.arrayBuffer();
+  }
+
+  /**
+   * Submit video synthesis job
+   */
+  async submitVideoSynthesis({ audioPath, videoPath, options = {} }) {
+    const taskCode = uuidv4();
+
+    const response = await fetch(`${this.baseUrls.video}/easy/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audio_url: audioPath,
+        video_url: videoPath,
+        code: taskCode,
+        chaofen: options.chaofen || 0,
+        watermark_switch: options.watermark || 0,
+        pn: options.pn || 1
+      }),
+      signal: AbortSignal.timeout(this.timeout)
+    });
+
+    const result = await response.json();
+
+    if (result.code !== 10000) {
+      throw new Error(`Video synthesis submission failed: ${result.msg}`);
+    }
+
+    return taskCode;
+  }
+
+  /**
+   * Query video synthesis status
+   */
+  async queryVideoStatus(taskCode) {
+    const response = await fetch(
+      `${this.baseUrls.video}/easy/query?code=${taskCode}`,
+      { signal: AbortSignal.timeout(this.timeout) }
+    );
+
+    const result = await response.json();
+
+    if (result.code !== 10000) {
+      throw new Error(`Status query failed: ${result.msg}`);
+    }
+
+    return {
+      status: result.data.status,
+      progress: result.data.progress,
+      message: result.data.msg,
+      result: result.data.result
+    };
+  }
+
+  /**
+   * Wait for video synthesis to complete
+   */
+  async waitForVideoCompletion(taskCode, options = {}) {
+    const pollInterval = options.pollInterval || 2000;
+    const maxRetries = options.maxRetries || 300; // 10 minutes max
+    let retries = 0;
+
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          if (retries >= maxRetries) {
+            reject(new Error('Video synthesis timeout'));
+            return;
+          }
+
+          const status = await this.queryVideoStatus(taskCode);
+
+          if (status.status === 2) {
+            // Success
+            resolve(status.result);
+          } else if (status.status === 3) {
+            // Failed
+            reject(new Error(`Video synthesis failed: ${status.message}`));
+          } else {
+            // Still processing
+            retries++;
+            setTimeout(poll, pollInterval);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      poll();
+    });
+  }
+}
+
+export default DuixAvatarClient;
+```
+
+## Web Application Integration
+
+### Express.js Backend API
+
+Create a REST API for your web application:
+
+```javascript server.js
+import express from 'express';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import DuixAvatarClient from './duix-avatar-client.js';
+
+const app = express();
+const upload = multer({ dest: 'uploads/' });
+const client = new DuixAvatarClient();
+
+// In-memory storage for voice models (use a database in production)
+const voiceModels = new Map();
+const videoJobs = new Map();
+
+app.use(express.json());
+
+// Train voice model endpoint
+app.post('/api/models/train', upload.single('audio'), async (req, res) => {
+  try {
+    const { language = 'en', name } = req.body;
+    const audioFile = req.file;
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'Audio file required' });
+    }
+
+    // Move file to Duix data directory
+    const targetPath = path.join(
+      'D:/duix_avatar_data/voice/data/origin_audio',
+      audioFile.originalname
+    );
+    fs.renameSync(audioFile.path, targetPath);
+
+    // Train model
+    const voiceModel = await client.trainVoiceModel({
+      audioPath: `origin_audio/${audioFile.originalname}`,
+      language
+    });
+
+    voiceModel.name = name || 'Unnamed Model';
+    voiceModels.set(voiceModel.id, voiceModel);
+
+    res.json({
+      success: true,
+      model: {
+        id: voiceModel.id,
+        name: voiceModel.name,
+        language: voiceModel.language,
+        transcription: voiceModel.referenceAudioText
+      }
+    });
+  } catch (error) {
+    console.error('Training error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List voice models
+app.get('/api/models', (req, res) => {
+  const models = Array.from(voiceModels.values()).map(m => ({
+    id: m.id,
+    name: m.name,
+    language: m.language,
+    createdAt: m.createdAt
+  }));
+  res.json({ models });
+});
+
+// Generate speech
+app.post('/api/audio/synthesize', async (req, res) => {
+  try {
+    const { modelId, text } = req.body;
+
+    const voiceModel = voiceModels.get(modelId);
+    if (!voiceModel) {
+      return res.status(404).json({ error: 'Voice model not found' });
+    }
+
+    const audioBuffer = await client.synthesizeAudio({
+      voiceModel,
+      text
+    });
+
+    // Save to file
+    const filename = `audio_${Date.now()}.wav`;
+    const outputPath = path.join('public/audio', filename);
+    fs.writeFileSync(outputPath, Buffer.from(audioBuffer));
+
+    res.json({
+      success: true,
+      audioUrl: `/audio/${filename}`
+    });
+  } catch (error) {
+    console.error('Synthesis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Submit video synthesis
+app.post('/api/videos/synthesize', upload.fields([
+  { name: 'audio', maxCount: 1 },
+  { name: 'video', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const audioFile = req.files.audio[0];
+    const videoFile = req.files.video[0];
+
+    // Move files to Duix data directory
+    const audioPath = `audio_${Date.now()}.wav`;
+    const videoPath = `video_${Date.now()}.mp4`;
+
+    fs.renameSync(
+      audioFile.path,
+      path.join('D:/duix_avatar_data/face2face/temp', audioPath)
+    );
+    fs.renameSync(
+      videoFile.path,
+      path.join('D:/duix_avatar_data/face2face/temp', videoPath)
+    );
+
+    // Submit job
+    const taskCode = await client.submitVideoSynthesis({
+      audioPath,
+      videoPath
+    });
+
+    videoJobs.set(taskCode, {
+      status: 'processing',
+      createdAt: new Date()
+    });
+
+    res.json({
+      success: true,
+      jobId: taskCode
+    });
+  } catch (error) {
+    console.error('Video synthesis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check video status
+app.get('/api/videos/status/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const status = await client.queryVideoStatus(jobId);
+
+    res.json({
+      success: true,
+      status: status.status === 1 ? 'processing' :
+              status.status === 2 ? 'completed' : 'failed',
+      progress: status.progress,
+      message: status.message,
+      videoUrl: status.result ? `/videos/${status.result}` : null
+    });
+  } catch (error) {
+    console.error('Status query error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
+```
+
+### React Frontend
+
+Create a React component for the user interface:
+
+```jsx VideoSynthesizer.jsx
+import React, { useState } from 'react';
+import axios from 'axios';
+
+function VideoSynthesizer() {
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [text, setText] = useState('');
+  const [videoFile, setVideoFile] = useState(null);
+  const [jobId, setJobId] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Load voice models
+  const loadModels = async () => {
+    const response = await axios.get('/api/models');
+    setModels(response.data.models);
+  };
+
+  // Generate and synthesize
+  const handleSynthesize = async () => {
+    setLoading(true);
+    
+    try {
+      // Step 1: Generate audio
+      const audioResponse = await axios.post('/api/audio/synthesize', {
+        modelId: selectedModel,
+        text
+      });
+
+      // Step 2: Download audio file
+      const audioBlob = await fetch(audioResponse.data.audioUrl).then(r => r.blob());
+
+      // Step 3: Submit video synthesis
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.wav');
+      formData.append('video', videoFile);
+
+      const videoResponse = await axios.post('/api/videos/synthesize', formData);
+      setJobId(videoResponse.data.jobId);
+
+      // Step 4: Poll for completion
+      pollStatus(videoResponse.data.jobId);
+    } catch (error) {
+      alert('Error: ' + error.message);
+      setLoading(false);
+    }
+  };
+
+  // Poll video status
+  const pollStatus = async (id) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await axios.get(`/api/videos/status/${id}`);
+        setStatus(response.data);
+
+        if (response.data.status === 'completed') {
+          clearInterval(interval);
+          setLoading(false);
+        } else if (response.data.status === 'failed') {
+          clearInterval(interval);
+          setLoading(false);
+          alert('Video synthesis failed');
+        }
+      } catch (error) {
+        clearInterval(interval);
+        setLoading(false);
+      }
+    }, 2000);
+  };
+
+  return (
+    <div className="video-synthesizer">
+      <h2>AI Avatar Video Generator</h2>
+
+      <div className="form-group">
+        <label>Voice Model:</label>
+        <select 
+          value={selectedModel} 
+          onChange={(e) => setSelectedModel(e.target.value)}
+          onFocus={loadModels}
+        >
+          <option value="">Select a model...</option>
+          {models.map(m => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>Text to Speak:</label>
+        <textarea 
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          placeholder="Enter the text you want the avatar to speak..."
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Avatar Video:</label>
+        <input 
+          type="file" 
+          accept="video/*"
+          onChange={(e) => setVideoFile(e.target.files[0])}
+        />
+      </div>
+
+      <button 
+        onClick={handleSynthesize}
+        disabled={loading || !selectedModel || !text || !videoFile}
+      >
+        {loading ? 'Processing...' : 'Generate Video'}
+      </button>
+
+      {status && (
+        <div className="status">
+          <h3>Status: {status.status}</h3>
+          <p>Progress: {status.progress}</p>
+          <p>{status.message}</p>
+          {status.videoUrl && (
+            <video src={status.videoUrl} controls />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default VideoSynthesizer;
+```
+
+## Python Integration
+
+For Python applications:
+
+```python duix_avatar_client.py
+import requests
+import uuid
+import time
+from typing import Dict, Optional
+
+class DuixAvatarClient:
+    def __init__(self, tts_url="http://127.0.0.1:18180", video_url="http://127.0.0.1:8383"):
+        self.tts_url = tts_url
+        self.video_url = video_url
+
+    def train_voice_model(self, audio_path: str, language: str = "en") -> Dict:
+        """Train a voice model from audio file"""
+        response = requests.post(
+            f"{self.tts_url}/v1/preprocess_and_tran",
+            json={
+                "format": audio_path.split(".")[-1],
+                "reference_audio": audio_path,
+                "lang": language
+            }
+        )
+        result = response.json()
+        
+        if result["code"] != 0:
+            raise Exception(f"Training failed: {result}")
+        
+        return {
+            "id": str(uuid.uuid4()),
+            "asr_format_audio_url": result["asr_format_audio_url"],
+            "reference_audio_text": result["reference_audio_text"],
+            "language": language
+        }
+
+    def synthesize_audio(self, voice_model: Dict, text: str, **options) -> bytes:
+        """Generate speech from text"""
+        response = requests.post(
+            f"{self.tts_url}/v1/invoke",
+            json={
+                "speaker": str(uuid.uuid4()),
+                "text": text,
+                "format": "wav",
+                "topP": options.get("top_p", 0.7),
+                "max_new_tokens": options.get("max_new_tokens", 1024),
+                "chunk_length": options.get("chunk_length", 100),
+                "repetition_penalty": options.get("repetition_penalty", 1.2),
+                "temperature": options.get("temperature", 0.7),
+                "need_asr": False,
+                "streaming": False,
+                "is_fixed_seed": options.get("is_fixed_seed", 0),
+                "is_norm": options.get("is_norm", 1),
+                "reference_audio": voice_model["asr_format_audio_url"],
+                "reference_text": voice_model["reference_audio_text"]
+            }
+        )
+        return response.content
+
+    def submit_video_synthesis(self, audio_path: str, video_path: str, **options) -> str:
+        """Submit video synthesis job"""
+        task_code = str(uuid.uuid4())
+        
+        response = requests.post(
+            f"{self.video_url}/easy/submit",
+            json={
+                "audio_url": audio_path,
+                "video_url": video_path,
+                "code": task_code,
+                "chaofen": options.get("chaofen", 0),
+                "watermark_switch": options.get("watermark", 0),
+                "pn": options.get("pn", 1)
+            }
+        )
+        result = response.json()
+        
+        if result["code"] != 10000:
+            raise Exception(f"Submission failed: {result['msg']}")
+        
+        return task_code
+
+    def query_video_status(self, task_code: str) -> Dict:
+        """Query video synthesis status"""
+        response = requests.get(f"{self.video_url}/easy/query?code={task_code}")
+        result = response.json()
+        
+        if result["code"] != 10000:
+            raise Exception(f"Query failed: {result['msg']}")
+        
+        return result["data"]
+
+    def wait_for_completion(self, task_code: str, poll_interval: int = 2, max_retries: int = 300) -> str:
+        """Wait for video synthesis to complete"""
+        retries = 0
+        
+        while retries < max_retries:
+            status = self.query_video_status(task_code)
+            
+            if status["status"] == 2:  # Success
+                return status["result"]
+            elif status["status"] == 3:  # Failed
+                raise Exception(f"Video synthesis failed: {status['msg']}")
+            
+            time.sleep(poll_interval)
+            retries += 1
+        
+        raise Exception("Video synthesis timeout")
+
+# Usage example
+if __name__ == "__main__":
+    client = DuixAvatarClient()
+    
+    # Train model
+    voice_model = client.train_voice_model("origin_audio/sample.wav", "en")
+    
+    # Generate audio
+    audio = client.synthesize_audio(voice_model, "Hello, world!")
+    with open("output.wav", "wb") as f:
+        f.write(audio)
+    
+    # Synthesize video
+    task_code = client.submit_video_synthesis("output.wav", "video.mp4")
+    result = client.wait_for_completion(task_code)
+    print(f"Video ready: {result}")
+```
+
+## Security Considerations
+
+<Warning>
+For production deployments, implement these security measures:
+</Warning>
+
+### Reverse Proxy with Authentication
+
+```nginx nginx.conf
+http {
+    upstream tts_service {
+        server 127.0.0.1:18180;
+    }
+    
+    upstream video_service {
+        server 127.0.0.1:8383;
+    }
+    
+    server {
+        listen 443 ssl;
+        server_name api.yourcompany.com;
+        
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        
+        # API key authentication
+        set $api_key_valid 0;
+        if ($http_x_api_key = "your-secret-api-key") {
+            set $api_key_valid 1;
+        }
+        
+        if ($api_key_valid = 0) {
+            return 401;
+        }
+        
+        # TTS endpoints
+        location /api/tts/ {
+            proxy_pass http://tts_service/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # Video endpoints
+        location /api/video/ {
+            proxy_pass http://video_service/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # Rate limiting
+        limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+        limit_req zone=api_limit burst=20 nodelay;
+    }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api/introduction">
+    Complete API documentation
+  </Card>
+  <Card title="Basic Workflow" icon="circle-play" href="/api/examples/basic-workflow">
+    Step-by-step workflow example
+  </Card>
+</CardGroup>

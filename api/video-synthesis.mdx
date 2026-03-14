@@ -1,0 +1,612 @@
+---
+title: Video Synthesis
+description: Create lip-synced avatar videos by combining audio with video
+---
+
+## Overview
+
+The Video Synthesis API creates realistic lip-synced avatar videos by combining audio (from [Audio Synthesis](/api/audio-synthesis) or uploaded files) with source video footage. This is the final step in creating AI avatar videos with Duix Avatar.
+
+<Note>
+Video synthesis is an asynchronous process. You submit a job, then poll for progress and results.
+</Note>
+
+## Endpoints
+
+<ParamField path="POST /easy/submit" type="endpoint">
+  Submit a video synthesis job
+  
+  **Base URL**: `http://127.0.0.1:8383`
+  
+  **Full URL**: `http://127.0.0.1:8383/easy/submit`
+</ParamField>
+
+<ParamField path="GET /easy/query" type="endpoint">
+  Query the status and progress of a synthesis job
+  
+  **Base URL**: `http://127.0.0.1:8383`
+  
+  **Full URL**: `http://127.0.0.1:8383/easy/query?code={taskCode}`
+</ParamField>
+
+## Submit Job
+
+### Request Parameters
+
+<ParamField path="audio_url" type="string" required>
+  Path to the audio file
+  
+  **Format**: Relative path from the face2face service directory
+  
+  **Example**: `"audio_20240315_123456.wav"`
+  
+  Use the filename returned from the audio synthesis endpoint or a manually uploaded audio file.
+</ParamField>
+
+<ParamField path="video_url" type="string" required>
+  Path to the source video file
+  
+  **Format**: Relative path from the model directory
+  
+  **Example**: `"model_20240315_123456.mp4"`
+  
+  This should be the video file you want to animate with the audio.
+</ParamField>
+
+<ParamField path="code" type="string" required>
+  Unique task identifier
+  
+  **Format**: UUID (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+  
+  Generate a unique UUID for each synthesis job. You'll use this to query job status.
+</ParamField>
+
+<ParamField path="chaofen" type="integer" default={0}>
+  Super-resolution setting
+  
+  **Fixed Value**: `0`
+  
+  Reserved for future use. Keep at 0.
+</ParamField>
+
+<ParamField path="watermark_switch" type="integer" default={0}>
+  Watermark overlay setting
+  
+  **Values**: `0` (no watermark) or `1` (add watermark)
+  
+  **Recommended**: `0`
+</ParamField>
+
+<ParamField path="pn" type="integer" default={1}>
+  Processing node setting
+  
+  **Fixed Value**: `1`
+  
+  Reserved for multi-node processing. Keep at 1.
+</ParamField>
+
+### Response
+
+<ResponseField name="code" type="integer" required>
+  Response status code
+  
+  - `10000` - Job submitted successfully
+  - `9999` - General error
+  - `10002` - Invalid parameters
+  - `10003` - System error
+</ResponseField>
+
+<ResponseField name="msg" type="string">
+  Response message describing the status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Additional response data (structure varies)
+</ResponseField>
+
+## Query Job Status
+
+### Request Parameters
+
+<ParamField path="code" type="string" required>
+  The unique task identifier used when submitting the job
+  
+  **Query Parameter**: `?code={taskCode}`
+</ParamField>
+
+### Response
+
+<ResponseField name="code" type="integer" required>
+  Response status code
+  
+  - `10000` - Query successful
+  - `9999` - Task not found or error
+  - `10002` - Invalid task code
+  - `10003` - System error
+</ResponseField>
+
+<ResponseField name="msg" type="string">
+  Response message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Job status information
+  
+  <Expandable title="data fields">
+    <ResponseField name="status" type="integer">
+      Job status:
+      - `1` - Processing
+      - `2` - Success
+      - `3` - Failed
+    </ResponseField>
+    
+    <ResponseField name="progress" type="string">
+      Progress percentage (e.g., "45%")
+    </ResponseField>
+    
+    <ResponseField name="msg" type="string">
+      Status message
+    </ResponseField>
+    
+    <ResponseField name="result" type="string">
+      Path to the output video file (only present when status is 2)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash Submit Job
+curl -X POST http://127.0.0.1:8383/easy/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audio_url": "audio_20240315_123456.wav",
+    "video_url": "model_20240315_123456.mp4",
+    "code": "550e8400-e29b-41d4-a716-446655440000",
+    "chaofen": 0,
+    "watermark_switch": 0,
+    "pn": 1
+  }'
+```
+
+```bash Query Status
+curl -X GET "http://127.0.0.1:8383/easy/query?code=550e8400-e29b-41d4-a716-446655440000"
+```
+
+```javascript JavaScript
+import { v4 as uuidv4 } from 'uuid';
+
+// Submit synthesis job
+const taskCode = uuidv4();
+
+const submitResponse = await fetch('http://127.0.0.1:8383/easy/submit', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    audio_url: 'audio_20240315_123456.wav',
+    video_url: 'model_20240315_123456.mp4',
+    code: taskCode,
+    chaofen: 0,
+    watermark_switch: 0,
+    pn: 1
+  })
+});
+
+const submitResult = await submitResponse.json();
+
+if (submitResult.code === 10000) {
+  console.log('Job submitted successfully');
+  
+  // Poll for status
+  const pollStatus = async () => {
+    const statusResponse = await fetch(
+      `http://127.0.0.1:8383/easy/query?code=${taskCode}`
+    );
+    const statusResult = await statusResponse.json();
+    
+    if (statusResult.code === 10000) {
+      const { status, progress, result } = statusResult.data;
+      
+      if (status === 1) {
+        console.log(`Processing: ${progress}`);
+        setTimeout(pollStatus, 2000); // Poll every 2 seconds
+      } else if (status === 2) {
+        console.log(`Success! Video saved to: ${result}`);
+      } else if (status === 3) {
+        console.log('Failed:', statusResult.data.msg);
+      }
+    }
+  };
+  
+  pollStatus();
+}
+```
+
+```python Python
+import requests
+import uuid
+import time
+
+# Submit synthesis job
+task_code = str(uuid.uuid4())
+
+submit_response = requests.post(
+    'http://127.0.0.1:8383/easy/submit',
+    json={
+        'audio_url': 'audio_20240315_123456.wav',
+        'video_url': 'model_20240315_123456.mp4',
+        'code': task_code,
+        'chaofen': 0,
+        'watermark_switch': 0,
+        'pn': 1
+    }
+)
+
+submit_result = submit_response.json()
+
+if submit_result['code'] == 10000:
+    print('Job submitted successfully')
+    
+    # Poll for status
+    while True:
+        status_response = requests.get(
+            f'http://127.0.0.1:8383/easy/query?code={task_code}'
+        )
+        status_result = status_response.json()
+        
+        if status_result['code'] == 10000:
+            data = status_result['data']
+            
+            if data['status'] == 1:
+                print(f"Processing: {data['progress']}")
+                time.sleep(2)
+            elif data['status'] == 2:
+                print(f"Success! Video saved to: {data['result']}")
+                break
+            elif data['status'] == 3:
+                print(f"Failed: {data['msg']}")
+                break
+```
+
+```go Go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "time"
+    "github.com/google/uuid"
+)
+
+type SubmitRequest struct {
+    AudioUrl        string `json:"audio_url"`
+    VideoUrl        string `json:"video_url"`
+    Code            string `json:"code"`
+    Chaofen         int    `json:"chaofen"`
+    WatermarkSwitch int    `json:"watermark_switch"`
+    Pn              int    `json:"pn"`
+}
+
+type SubmitResponse struct {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+}
+
+type StatusResponse struct {
+    Code int `json:"code"`
+    Msg  string `json:"msg"`
+    Data struct {
+        Status   int    `json:"status"`
+        Progress string `json:"progress"`
+        Msg      string `json:"msg"`
+        Result   string `json:"result"`
+    } `json:"data"`
+}
+
+func main() {
+    taskCode := uuid.New().String()
+    
+    // Submit job
+    req := SubmitRequest{
+        AudioUrl:        "audio_20240315_123456.wav",
+        VideoUrl:        "model_20240315_123456.mp4",
+        Code:            taskCode,
+        Chaofen:         0,
+        WatermarkSwitch: 0,
+        Pn:              1,
+    }
+    
+    jsonData, _ := json.Marshal(req)
+    resp, _ := http.Post(
+        "http://127.0.0.1:8383/easy/submit",
+        "application/json",
+        bytes.NewBuffer(jsonData),
+    )
+    defer resp.Body.Close()
+    
+    var submitResult SubmitResponse
+    json.NewDecoder(resp.Body).Decode(&submitResult)
+    
+    if submitResult.Code == 10000 {
+        fmt.Println("Job submitted successfully")
+        
+        // Poll for status
+        for {
+            statusResp, _ := http.Get(
+                fmt.Sprintf("http://127.0.0.1:8383/easy/query?code=%s", taskCode),
+            )
+            defer statusResp.Body.Close()
+            
+            var statusResult StatusResponse
+            json.NewDecoder(statusResp.Body).Decode(&statusResult)
+            
+            if statusResult.Code == 10000 {
+                if statusResult.Data.Status == 1 {
+                    fmt.Printf("Processing: %s\n", statusResult.Data.Progress)
+                    time.Sleep(2 * time.Second)
+                } else if statusResult.Data.Status == 2 {
+                    fmt.Printf("Success! Video saved to: %s\n", statusResult.Data.Result)
+                    break
+                } else if statusResult.Data.Status == 3 {
+                    fmt.Printf("Failed: %s\n", statusResult.Data.Msg)
+                    break
+                }
+            }
+        }
+    }
+}
+```
+
+</CodeGroup>
+
+## Example Response
+
+```json Submit Response (Success)
+{
+  "code": 10000,
+  "msg": "Job submitted successfully"
+}
+```
+
+```json Query Response (Processing)
+{
+  "code": 10000,
+  "msg": "Success",
+  "data": {
+    "status": 1,
+    "progress": "45%",
+    "msg": "Processing video..."
+  }
+}
+```
+
+```json Query Response (Complete)
+{
+  "code": 10000,
+  "msg": "Success",
+  "data": {
+    "status": 2,
+    "progress": "100%",
+    "msg": "Video synthesis completed",
+    "result": "output/video_20240315_123456.mp4"
+  }
+}
+```
+
+```json Query Response (Failed)
+{
+  "code": 10000,
+  "msg": "Success",
+  "data": {
+    "status": 3,
+    "progress": "0%",
+    "msg": "Audio and video duration mismatch"
+  }
+}
+```
+
+## Complete Workflow Example
+
+Here's a complete example showing the entire pipeline from audio synthesis to video generation:
+
+```javascript Complete Pipeline
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+
+// Assume we already have a trained voice model
+const voiceModel = {
+  asr_format_audio_url: 'processed/audio_20240315_123456.wav',
+  reference_audio_text: 'Hello, this is my voice sample.'
+};
+
+const sourceVideoPath = 'model_20240315_123456.mp4';
+const textToSpeak = 'Welcome to Duix Avatar! This is an amazing AI video synthesis platform.';
+
+// Step 1: Generate audio from text
+const audioResponse = await fetch('http://127.0.0.1:18180/v1/invoke', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    speaker: uuidv4(),
+    text: textToSpeak,
+    format: 'wav',
+    topP: 0.7,
+    max_new_tokens: 1024,
+    chunk_length: 100,
+    repetition_penalty: 1.2,
+    temperature: 0.7,
+    need_asr: false,
+    streaming: false,
+    is_fixed_seed: 0,
+    is_norm: 1,
+    reference_audio: voiceModel.asr_format_audio_url,
+    reference_text: voiceModel.reference_audio_text
+  })
+});
+
+const audioBuffer = await audioResponse.arrayBuffer();
+const audioFilename = `${uuidv4()}.wav`;
+fs.writeFileSync(audioFilename, Buffer.from(audioBuffer));
+
+console.log(`Audio generated: ${audioFilename}`);
+
+// Step 2: Submit video synthesis job
+const taskCode = uuidv4();
+
+const submitResponse = await fetch('http://127.0.0.1:8383/easy/submit', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    audio_url: audioFilename,
+    video_url: sourceVideoPath,
+    code: taskCode,
+    chaofen: 0,
+    watermark_switch: 0,
+    pn: 1
+  })
+});
+
+const submitResult = await submitResponse.json();
+
+if (submitResult.code !== 10000) {
+  throw new Error(`Failed to submit job: ${submitResult.msg}`);
+}
+
+console.log('Video synthesis job submitted');
+
+// Step 3: Poll for completion
+const pollStatus = async () => {
+  const statusResponse = await fetch(
+    `http://127.0.0.1:8383/easy/query?code=${taskCode}`
+  );
+  const statusResult = await statusResponse.json();
+  
+  if (statusResult.code === 10000) {
+    const { status, progress, result, msg } = statusResult.data;
+    
+    if (status === 1) {
+      console.log(`Processing: ${progress}`);
+      setTimeout(pollStatus, 2000);
+    } else if (status === 2) {
+      console.log(`\nSuccess! Final video: ${result}`);
+      // Video is saved at: D:\duix_avatar_data\face2face\temp\{result}
+    } else if (status === 3) {
+      console.error(`Failed: ${msg}`);
+    }
+  }
+};
+
+pollStatus();
+```
+
+## File Locations
+
+<Tabs>
+  <Tab title="Windows">
+    **Working Directory**:
+    ```
+    D:\duix_avatar_data\face2face\temp\
+    ```
+    
+    - Audio files: `D:\duix_avatar_data\face2face\temp\{audio_url}`
+    - Video files: `D:\duix_avatar_data\face2face\temp\{video_url}`
+    - Output: `D:\duix_avatar_data\face2face\temp\output\{result}`
+  </Tab>
+  
+  <Tab title="Linux">
+    **Working Directory**:
+    ```
+    ~/duix_avatar_data/face2face/temp/
+    ```
+    
+    - Audio files: `~/duix_avatar_data/face2face/temp/{audio_url}`
+    - Video files: `~/duix_avatar_data/face2face/temp/{video_url}`
+    - Output: `~/duix_avatar_data/face2face/temp/output/{result}`
+  </Tab>
+</Tabs>
+
+## Processing Time
+
+<Info>
+Video synthesis time depends on video length and hardware:
+
+- **Short videos (10-30s)**: 1-3 minutes
+- **Medium videos (30-60s)**: 3-6 minutes
+- **Long videos (1-3min)**: 6-15 minutes
+
+Processing uses GPU acceleration (NVIDIA required).
+</Info>
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Code: 9999 - General Error">
+    **Common Causes**:
+    - Service not running
+    - Invalid file paths
+    - Insufficient disk space
+    
+    **Solution**: Check Docker service status and verify file paths exist.
+  </Accordion>
+  
+  <Accordion title="Code: 10002 - Invalid Parameters">
+    **Common Causes**:
+    - Missing required fields
+    - Invalid UUID format
+    - Empty file paths
+    
+    **Solution**: Validate all required parameters before submission.
+  </Accordion>
+  
+  <Accordion title="Status: 3 - Processing Failed">
+    **Common Causes**:
+    - Audio/video duration mismatch (audio too long)
+    - Corrupted input files
+    - Insufficient GPU memory
+    
+    **Solution**: Ensure audio matches video length, verify file integrity, or reduce video resolution.
+  </Accordion>
+  
+  <Accordion title="Task Not Found">
+    **Cause**: Querying with incorrect task code or before job submission
+    
+    **Solution**: Verify the task code matches the one used in submission.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Audio-Video Sync" icon="align-center">
+    Ensure audio duration doesn't exceed video duration. Trim or loop video as needed.
+  </Card>
+  
+  <Card title="Polling Interval" icon="clock">
+    Poll status every 2-5 seconds. Faster polling won't speed up processing.
+  </Card>
+  
+  <Card title="Error Recovery" icon="rotate-right">
+    Implement retry logic with exponential backoff for failed jobs.
+  </Card>
+  
+  <Card title="Resource Management" icon="server">
+    Process one video at a time on consumer GPUs to avoid memory issues.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Workflow" icon="circle-play" href="/api/examples/basic-workflow">
+    See a complete end-to-end workflow example
+  </Card>
+  <Card title="Custom Integration" icon="code" href="/api/examples/custom-integration">
+    Learn how to integrate into your application
+  </Card>
+</CardGroup>

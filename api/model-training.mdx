@@ -1,0 +1,321 @@
+---
+title: Model Training
+description: Train voice models from audio samples using automatic speech recognition
+---
+
+## Overview
+
+The Model Training API allows you to create custom voice models from audio samples. This is the first step in the Duix Avatar workflow, where you process audio to extract voice characteristics that will be used for audio synthesis.
+
+<Note>
+Model training uses ASR (Automatic Speech Recognition) to preprocess and transcribe your audio, creating a voice profile for synthesis.
+</Note>
+
+## Endpoint
+
+<ParamField path="POST /v1/preprocess_and_tran" type="endpoint">
+  Preprocess audio and train a voice model
+  
+  **Base URL**: `http://127.0.0.1:18180`
+  
+  **Full URL**: `http://127.0.0.1:18180/v1/preprocess_and_tran`
+</ParamField>
+
+## Request Parameters
+
+<ParamField path="format" type="string" required>
+  Audio file format extension
+  
+  **Example**: `"wav"`, `"mp3"`, `"flac"`
+  
+  Automatically extracted from the file extension of the audio path.
+</ParamField>
+
+<ParamField path="reference_audio" type="string" required>
+  Path to the reference audio file
+  
+  **Format**: Relative path from the TTS service root directory
+  
+  **Example**: `"origin_audio/sample.wav"`
+  
+  <Info>
+  The path should be relative to `D:\duix_avatar_data\voice\data` (Windows) or `~/duix_avatar_data/voice/data` (Linux). Place your audio files in the `origin_audio` subdirectory.
+  </Info>
+</ParamField>
+
+<ParamField path="lang" type="string" default="zh">
+  Language code for speech recognition
+  
+  **Supported Languages**:
+  - `"zh"` - Chinese
+  - `"en"` - English
+  - `"ja"` - Japanese
+  - `"ko"` - Korean
+  - `"fr"` - French
+  - `"de"` - German
+  - `"ar"` - Arabic
+  - `"es"` - Spanish
+</ParamField>
+
+## Response
+
+Successful response returns voice model parameters:
+
+<ResponseField name="code" type="integer" required>
+  Response status code
+  
+  - `0` - Success
+  - Non-zero - Error occurred
+</ResponseField>
+
+<ResponseField name="asr_format_audio_url" type="string" required>
+  URL/path to the ASR-processed audio file
+  
+  **Save this value** - it's required for audio synthesis in the next step.
+</ResponseField>
+
+<ResponseField name="reference_audio_text" type="string" required>
+  Transcribed text from the audio sample
+  
+  **Save this value** - it's required for audio synthesis in the next step.
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://127.0.0.1:18180/v1/preprocess_and_tran \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "wav",
+    "reference_audio": "origin_audio/my_voice.wav",
+    "lang": "en"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://127.0.0.1:18180/v1/preprocess_and_tran', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    format: 'wav',
+    reference_audio: 'origin_audio/my_voice.wav',
+    lang: 'en'
+  })
+});
+
+const result = await response.json();
+
+if (result.code === 0) {
+  // Save these values for audio synthesis
+  const voiceModel = {
+    asr_format_audio_url: result.asr_format_audio_url,
+    reference_audio_text: result.reference_audio_text
+  };
+  console.log('Voice model created:', voiceModel);
+}
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://127.0.0.1:18180/v1/preprocess_and_tran',
+    json={
+        'format': 'wav',
+        'reference_audio': 'origin_audio/my_voice.wav',
+        'lang': 'en'
+    }
+)
+
+result = response.json()
+
+if result['code'] == 0:
+    # Save these values for audio synthesis
+    voice_model = {
+        'asr_format_audio_url': result['asr_format_audio_url'],
+        'reference_audio_text': result['reference_audio_text']
+    }
+    print(f"Voice model created: {voice_model}")
+```
+
+```go Go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type TrainRequest struct {
+    Format         string `json:"format"`
+    ReferenceAudio string `json:"reference_audio"`
+    Lang           string `json:"lang"`
+}
+
+type TrainResponse struct {
+    Code              int    `json:"code"`
+    AsrFormatAudioUrl string `json:"asr_format_audio_url"`
+    ReferenceAudioText string `json:"reference_audio_text"`
+}
+
+func main() {
+    req := TrainRequest{
+        Format:         "wav",
+        ReferenceAudio: "origin_audio/my_voice.wav",
+        Lang:           "en",
+    }
+    
+    jsonData, _ := json.Marshal(req)
+    resp, _ := http.Post(
+        "http://127.0.0.1:18180/v1/preprocess_and_tran",
+        "application/json",
+        bytes.NewBuffer(jsonData),
+    )
+    defer resp.Body.Close()
+    
+    var result TrainResponse
+    json.NewDecoder(resp.Body).Decode(&result)
+    
+    if result.Code == 0 {
+        fmt.Printf("Voice model created: %+v\n", result)
+    }
+}
+```
+
+</CodeGroup>
+
+## Example Response
+
+```json Success Response
+{
+  "code": 0,
+  "asr_format_audio_url": "processed/audio_20240315_123456.wav",
+  "reference_audio_text": "Hello, this is my voice sample for training the AI model."
+}
+```
+
+```json Error Response
+{
+  "code": 1,
+  "message": "Audio file not found"
+}
+```
+
+## Workflow Integration
+
+Here's how model training fits into the complete workflow:
+
+```javascript Complete Example
+// Step 1: Prepare audio file
+// Place your audio in: D:\duix_avatar_data\voice\data\origin_audio\sample.wav
+
+// Step 2: Train the voice model
+const trainResponse = await fetch('http://127.0.0.1:18180/v1/preprocess_and_tran', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    format: 'wav',
+    reference_audio: 'origin_audio/sample.wav',
+    lang: 'en'
+  })
+});
+
+const voiceModel = await trainResponse.json();
+
+// Step 3: Store the voice model for later use
+if (voiceModel.code === 0) {
+  // Save to database or file
+  const storedModel = {
+    id: generateUUID(),
+    asr_format_audio_url: voiceModel.asr_format_audio_url,
+    reference_audio_text: voiceModel.reference_audio_text,
+    created_at: new Date()
+  };
+  
+  // Use this model for audio synthesis
+  // See: /api/audio-synthesis
+}
+```
+
+## Audio File Requirements
+
+<Warning>
+For best results, your audio sample should meet these requirements:
+</Warning>
+
+- **Duration**: 5-30 seconds of clear speech
+- **Quality**: High-quality recording with minimal background noise
+- **Format**: WAV, MP3, or FLAC
+- **Sample Rate**: 16kHz or higher recommended
+- **Content**: Natural speech in the target language
+
+## File Location
+
+Place your audio files in the appropriate directory:
+
+<Tabs>
+  <Tab title="Windows">
+    ```
+    D:\duix_avatar_data\voice\data\origin_audio\your_file.wav
+    ```
+    
+    Reference path in API: `origin_audio/your_file.wav`
+  </Tab>
+  
+  <Tab title="Linux">
+    ```
+    ~/duix_avatar_data/voice/data/origin_audio/your_file.wav
+    ```
+    
+    Reference path in API: `origin_audio/your_file.wav`
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Code: 1 - Audio File Not Found">
+    **Solution**: Verify that the audio file exists in the correct directory and the path is relative to the TTS service root.
+    
+    ```bash
+    # Windows
+    dir D:\duix_avatar_data\voice\data\origin_audio
+    
+    # Linux
+    ls ~/duix_avatar_data/voice/data/origin_audio
+    ```
+  </Accordion>
+  
+  <Accordion title="Code: 2 - Invalid Audio Format">
+    **Solution**: Ensure the audio file is in a supported format (WAV, MP3, FLAC) and not corrupted.
+  </Accordion>
+  
+  <Accordion title="Code: 3 - ASR Processing Failed">
+    **Solution**: The audio quality may be too low or the language parameter may be incorrect. Try with a clearer audio sample or verify the language code.
+  </Accordion>
+  
+  <Accordion title="Connection Refused">
+    **Solution**: Ensure the TTS Docker service is running on port 18180.
+    
+    ```bash
+    docker ps | grep fish-speech
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Audio Synthesis" icon="microphone" href="/api/audio-synthesis">
+    Use your trained model to generate speech from text
+  </Card>
+  <Card title="Basic Workflow" icon="circle-play" href="/api/examples/basic-workflow">
+    See the complete workflow from training to video
+  </Card>
+</CardGroup>

@@ -1,0 +1,344 @@
+---
+title: Docker Configuration
+description: Complete guide to Docker service configuration for Duix Avatar deployment
+---
+
+Duix Avatar uses Docker Compose to orchestrate three core services for AI avatar creation and video synthesis. This guide covers the configuration of each service and deployment options.
+
+## Overview
+
+The standard deployment includes three Docker services:
+
+<CardGroup cols={3}>
+  <Card title="TTS Service" icon="microphone">
+    Fish Speech text-to-speech engine for voice synthesis
+  </Card>
+  <Card title="ASR Service" icon="waveform">
+    Fun ASR automatic speech recognition for audio processing
+  </Card>
+  <Card title="Video Generation" icon="video">
+    Core service for digital human video synthesis
+  </Card>
+</CardGroup>
+
+## Deployment Modes
+
+Duix Avatar offers multiple Docker Compose configurations for different platforms and requirements:
+
+### Standard Windows Deployment
+
+Use `docker-compose.yml` for Windows systems with NVIDIA GPUs.
+
+```bash
+cd deploy
+docker-compose up -d
+```
+
+### Lite Version
+
+For systems with limited resources, use the lite version with only the video generation service:
+
+```bash
+cd deploy
+docker-compose -f docker-compose-lite.yml up -d
+```
+
+### Linux Deployment
+
+For Ubuntu 22.04 and other Linux distributions:
+
+```bash
+cd deploy
+docker-compose -f docker-compose-linux.yml up -d
+```
+
+### NVIDIA 50 Series
+
+Special configuration for NVIDIA 50 series GPUs (also compatible with 30/40 series):
+
+```bash
+cd deploy
+docker-compose -f docker-compose-5090.yml up -d
+```
+
+<Note>
+The NVIDIA 50 series configuration uses PyTorch preview versions optimized for CUDA 12.8.
+</Note>
+
+## Service Configurations
+
+### TTS Service (Text-to-Speech)
+
+The TTS service handles voice cloning and audio synthesis using Fish Speech.
+
+<CodeGroup>
+
+```yaml Windows
+duix-avatar-tts:
+  image: guiji2025/fish-speech-ziming
+  container_name: duix-avatar-tts
+  restart: always
+  runtime: nvidia
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=0
+    - NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility,video,display
+  ports:
+    - '18180:8080'
+  volumes:
+    - d:/duix_avatar_data/voice/data:/code/data
+  command: /bin/bash -c "/opt/conda/envs/python310/bin/python3 tools/api_server.py --listen 0.0.0.0:8080"
+```
+
+```yaml Linux
+duix-avatar-tts:
+  image: guiji2025/fish-speech-ziming
+  container_name: duix-avatar-tts
+  restart: always
+  runtime: nvidia
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=0
+    - NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility,video,display
+  ports:
+    - '18180:8080'
+  volumes:
+    - ~/duix_avatar_data/voice/data:/code/data
+  command: /bin/bash -c "/opt/conda/envs/python310/bin/python3 tools/api_server.py --listen 0.0.0.0:8080"
+```
+
+</CodeGroup>
+
+**Key Configuration:**
+- **Port**: `18180:8080` - API accessible at `http://127.0.0.1:18180`
+- **Volume**: Voice training data directory
+- **GPU**: Uses GPU device 0 with full driver capabilities
+
+### ASR Service (Automatic Speech Recognition)
+
+The ASR service processes audio for speech recognition using Fun ASR.
+
+```yaml
+duix-avatar-asr:
+  image: guiji2025/fun-asr
+  container_name: duix-avatar-asr
+  restart: always
+  runtime: nvidia
+  privileged: true
+  working_dir: /workspace/FunASR/runtime
+  ports:
+    - '10095:10095'
+  command: sh /run.sh
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+```
+
+**Key Configuration:**
+- **Port**: `10095:10095` - ASR service endpoint
+- **Privileged**: Required for full hardware access
+- **GPU**: Allocates all available NVIDIA GPUs
+
+<Warning>
+The ASR service is not included in the lite deployment or NVIDIA 50 series configuration.
+</Warning>
+
+### Video Generation Service
+
+The core service for digital human video synthesis and lip-sync processing.
+
+```yaml
+duix-avatar-gen-video:
+  image: guiji2025/duix.avatar
+  container_name: duix-avatar-gen-video
+  restart: always
+  runtime: nvidia
+  privileged: true
+  volumes:
+    - d:/duix_avatar_data/face2face:/code/data
+  environment:
+    - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - capabilities: [gpu]
+  shm_size: '8g'
+  ports:
+    - '8383:8383'
+  command: python /code/app_local.py
+```
+
+**Key Configuration:**
+- **Port**: `8383:8383` - Video synthesis API
+- **Volume**: Face-to-face video data directory
+- **Shared Memory**: 8GB for efficient GPU operations
+- **CUDA Config**: Memory allocation optimization
+
+## Environment Variables
+
+### NVIDIA GPU Configuration
+
+All services require NVIDIA runtime configuration:
+
+| Variable | Value | Purpose |
+|----------|-------|----------|
+| `NVIDIA_VISIBLE_DEVICES` | `0` or `all` | Specifies which GPU devices to use |
+| `NVIDIA_DRIVER_CAPABILITIES` | `compute,graphics,utility,video,display` | Enables full GPU capabilities |
+
+### PyTorch CUDA Configuration
+
+The video generation service uses specific CUDA memory allocation settings:
+
+```yaml
+environment:
+  - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+```
+
+This limits memory fragmentation by setting the maximum split size to 512MB. See [GPU Optimization](/advanced/gpu-optimization) for details.
+
+## Volume Mounts
+
+### Windows Paths
+
+Standard Windows deployments use D: drive:
+
+```yaml
+volumes:
+  # TTS service - voice training data
+  - d:/duix_avatar_data/voice/data:/code/data
+  
+  # Video generation - avatar models
+  - d:/duix_avatar_data/face2face:/code/data
+```
+
+### Linux Paths
+
+Linux deployments use home directory:
+
+```yaml
+volumes:
+  # TTS service - voice training data
+  - ~/duix_avatar_data/voice/data:/code/data
+  
+  # Video generation - avatar models
+  - ~/duix_avatar_data/face2face:/code/data
+```
+
+<Warning>
+**Storage Requirements:**
+- Ensure at least 30GB free space for data storage
+- Docker images require approximately 100GB
+- Initial download consumes ~70GB of bandwidth
+</Warning>
+
+## Network Configuration
+
+All services use a shared bridge network:
+
+```yaml
+networks:
+  ai_network:
+    driver: bridge
+```
+
+This allows inter-service communication while exposing only specific ports to the host.
+
+## Port Mappings
+
+| Service | Container Port | Host Port | Purpose |
+|---------|---------------|-----------|----------|
+| TTS | 8080 | 18180 | Voice synthesis API |
+| ASR | 10095 | 10095 | Speech recognition |
+| Video Generation | 8383 | 8383 | Video synthesis API |
+
+## Resource Allocation
+
+### GPU Resources
+
+All services are configured with NVIDIA runtime:
+
+```yaml
+runtime: nvidia
+deploy:
+  resources:
+    reservations:
+      devices:
+        - capabilities: [gpu]
+```
+
+### Shared Memory
+
+The video generation service requires 8GB shared memory:
+
+```yaml
+shm_size: '8g'
+```
+
+This is critical for efficient GPU operations and preventing out-of-memory errors.
+
+## Verification
+
+After deployment, verify all services are running:
+
+```bash
+docker ps
+```
+
+You should see three containers (or one for lite version):
+- `duix-avatar-tts`
+- `duix-avatar-asr` (not in lite/5090 versions)
+- `duix-avatar-gen-video`
+
+<Note>
+Services may take several minutes to fully initialize on first startup as models are loaded into GPU memory.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Services won't start">
+  Ensure NVIDIA drivers are properly installed:
+  
+  ```bash
+  nvidia-smi
+  ```
+  
+  Verify Docker has access to NVIDIA runtime:
+  
+  ```bash
+  docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+  ```
+</Accordion>
+
+<Accordion title="Port conflicts">
+  Check if ports 18180, 10095, or 8383 are already in use:
+  
+  ```bash
+  netstat -an | grep -E "18180|10095|8383"
+  ```
+  
+  Modify port mappings in docker-compose.yml if needed.
+</Accordion>
+
+<Accordion title="Out of memory errors">
+  Increase shared memory size or adjust CUDA allocation:
+  
+  ```yaml
+  shm_size: '16g'  # Increase from 8g
+  environment:
+    - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:256  # Reduce split size
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="GPU Optimization" icon="gauge-high" href="/advanced/gpu-optimization">
+    Optimize GPU performance and memory usage
+  </Card>
+  <Card title="NVIDIA 50 Series" icon="microchip" href="/advanced/nvidia-50-series">
+    Special configuration for latest GPUs
+  </Card>
+</CardGroup>

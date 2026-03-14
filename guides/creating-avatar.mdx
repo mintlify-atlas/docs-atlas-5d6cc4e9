@@ -1,0 +1,108 @@
+---
+title: Creating an Avatar
+description: Learn how to create AI avatars from video files in Duix
+---
+
+## Overview
+
+Creating an avatar in Duix involves uploading a video file, extracting audio, and training a voice model. This process prepares your avatar for video synthesis.
+
+<Steps>
+  <Step title="Upload Avatar Video">
+    Select a video file containing your avatar. The video should feature the person speaking clearly for best results.
+    
+    The application will automatically convert the video to H.264 format for compatibility.
+    
+    **IPC Handler:** `model/addModel`
+  </Step>
+
+  <Step title="Audio Extraction">
+    The system automatically extracts audio from your video using FFmpeg.
+    
+    <Info>
+      Audio is extracted in WAV format and stored in the training directory (`assetPath.ttsTrain`).
+    </Info>
+    
+    The extraction process is handled by the `extractAudio()` function from `src/main/util/ffmpeg.js`.
+  </Step>
+
+  <Step title="Voice Training">
+    Once audio is extracted, the system trains a voice model using the TTS (Text-to-Speech) service.
+    
+    The training process:
+    - Sends audio to the `/v1/preprocess_and_tran` endpoint
+    - Receives ASR formatted audio URL and reference text
+    - Stores voice model in the database with a unique voice ID
+    
+    <Tip>
+      Default language is set to Chinese (`zh`), but the system supports multiple languages through the `lang` parameter.
+    </Tip>
+    
+    **Service Method:** `train()` in `src/main/service/voice.js:17`
+  </Step>
+
+  <Step title="Model Registration">
+    After successful voice training, the model is registered in the database with:
+    - Model name
+    - Video path (relative)
+    - Audio path (relative)
+    - Voice ID
+    - Creation timestamp
+    
+    **DAO Method:** `insert()` in `src/main/dao/f2f-model.js:3`
+  </Step>
+</Steps>
+
+## Technical Details
+
+### File Organization
+
+When you create an avatar, files are organized as follows:
+
+- **Video files:** Stored in `assetPath.model` directory with timestamp-based filenames (`YYYYMMDDHHmmssSSS.ext`)
+- **Audio files:** Stored in `assetPath.ttsTrain` directory as WAV files
+- **Voice models:** Stored in database with references to file paths
+
+### Video Format Conversion
+
+The `toH264()` function ensures all videos are converted to H.264 codec:
+
+```javascript
+await toH264(videoPath, modelPath)
+```
+
+This ensures compatibility across different systems and browsers.
+
+### IPC Communication
+
+The model creation process uses Electron's IPC (Inter-Process Communication):
+
+<CardGroup cols={2}>
+  <Card title="addModel" icon="plus">
+    Creates a new avatar model from video
+    
+    **Handler:** `model/addModel`
+  </Card>
+  
+  <Card title="Response" icon="check">
+    Returns the newly created model ID
+    
+    Used to reference the model in future operations
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+<Warning>
+  If voice training fails (`res.code !== 0`), the function returns `false` and the model creation is aborted.
+</Warning>
+
+Always check the return value to ensure successful model creation.
+
+## Next Steps
+
+After creating your avatar:
+
+- [Clone and customize voices](/guides/voice-cloning)
+- [Synthesize videos with your avatar](/guides/video-synthesis)
+- [Manage your avatar models](/guides/managing-models)

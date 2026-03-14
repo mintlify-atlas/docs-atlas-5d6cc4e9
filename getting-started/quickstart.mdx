@@ -1,0 +1,336 @@
+---
+title: Quickstart Guide
+description: Create your first AI avatar and generate videos with Duix Avatar
+---
+
+This guide will walk you through creating your first AI avatar and generating your first video using Duix Avatar. By the end of this tutorial, you'll have a digital clone of yourself that can speak any text you provide.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- Completed the installation for either [Windows](/getting-started/windows-installation) or [Linux](/getting-started/linux-installation)
+- All Docker services running (verify in Docker Desktop or with `docker ps`)
+- Duix Avatar client application installed and launched
+- A short video of yourself (for avatar training)
+- A voice sample (for voice cloning)
+
+## Overview
+
+The Duix Avatar workflow consists of three main stages:
+
+<CardGroup cols={3}>
+  <Card title="Model Training" icon="brain">
+    Train your avatar model using video data
+  </Card>
+  <Card title="Voice Cloning" icon="microphone">
+    Clone your voice from audio samples
+  </Card>
+  <Card title="Video Synthesis" icon="video">
+    Generate videos with your avatar
+  </Card>
+</CardGroup>
+
+## Step 1: Prepare Your Training Data
+
+<Steps>
+  <Step title="Record a training video">
+    Record a video of yourself for avatar training. For best results:
+    
+    - **Duration:** 1-3 minutes is ideal
+    - **Lighting:** Use good, even lighting on your face
+    - **Background:** Use a clean, simple background
+    - **Camera position:** Face the camera directly
+    - **Expression:** Speak naturally with various expressions
+    - **Quality:** Use 1080p resolution or higher
+    - **Audio:** Clear audio is important for voice cloning
+    
+    <Note>
+      The video will be separated into silent video and audio. The video is used for facial training, while the audio is used for voice cloning.
+    </Note>
+  </Step>
+
+  <Step title="Optional: Prepare a voice sample">
+    If you want to use a separate audio file for voice cloning:
+    
+    - Record clear speech in a quiet environment
+    - Duration: 30 seconds to 2 minutes
+    - Format: WAV or MP3
+    - Content: Speak naturally with varied intonation
+  </Step>
+</Steps>
+
+## Step 2: Train Your Avatar Model
+
+<Steps>
+  <Step title="Launch the client">
+    Open the Duix Avatar application.
+    
+    Ensure all services are connected (you should see indicators showing the services are online).
+  </Step>
+
+  <Step title="Create a new avatar project">
+    1. Click on "Create New Avatar" or similar option
+    2. Give your avatar a name
+    3. Upload your training video
+  </Step>
+
+  <Step title="Process the training data">
+    The system will automatically:
+    
+    1. Separate your video into silent video and audio
+    2. Extract facial features from the video frames
+    3. Prepare the audio for voice cloning
+    
+    This process may take a few minutes depending on video length.
+  </Step>
+
+  <Step title="Start training">
+    Once processing is complete:
+    
+    1. Review the processed video preview
+    2. Click "Start Training" or similar button
+    3. Wait for the training to complete
+    
+    <Note>
+      Training time varies based on your GPU and video length. This can take 15-30 minutes.
+    </Note>
+  </Step>
+</Steps>
+
+## Step 3: Clone Your Voice
+
+Voice cloning happens alongside model training using the audio extracted from your video.
+
+<Steps>
+  <Step title="Audio extraction">
+    The system automatically places your audio in:
+    
+    - **Windows:** `D:\duix_avatar_data\voice\data`
+    - **Linux:** `~/duix_avatar_data/voice/data`
+    
+    This directory is mapped to the `duix-avatar-tts` Docker service.
+  </Step>
+
+  <Step title="Voice training">
+    The voice cloning service (running on port 18180) will:
+    
+    1. Analyze your voice characteristics
+    2. Train a voice model capturing your speech patterns
+    3. Generate a unique speaker ID for your voice
+    
+    <Note>
+      Voice cloning uses the Fish Speech model and captures context, intonation, and speed characteristics.
+    </Note>
+  </Step>
+
+  <Step title="Test your cloned voice">
+    Once training completes:
+    
+    1. Navigate to the voice testing section
+    2. Enter some test text
+    3. Generate audio to hear your cloned voice
+    4. Adjust settings if needed
+  </Step>
+</Steps>
+
+## Step 4: Generate Your First Video
+
+Now that your avatar and voice are trained, you can generate videos!
+
+<Steps>
+  <Step title="Create a new video project">
+    1. Select your trained avatar model
+    2. Choose your cloned voice
+    3. Create a new video generation project
+  </Step>
+
+  <Step title="Input your script">
+    Enter the text you want your avatar to speak:
+    
+    - Type directly in the text editor
+    - Paste from another source
+    - Upload a text file
+    
+    <Note>
+      Duix Avatar supports 8 languages: English, Japanese, Korean, Chinese, French, German, Arabic, and Spanish.
+    </Note>
+  </Step>
+
+  <Step title="Configure synthesis settings">
+    Adjust settings as needed:
+    
+    - **Voice parameters:** Top-P, temperature, repetition penalty
+    - **Video quality:** Resolution and quality settings
+    - **Synchronization:** Lip-sync optimization level
+    
+    <Note>
+      The default settings work well for most cases. Advanced users can fine-tune these parameters.
+    </Note>
+  </Step>
+
+  <Step title="Generate the video">
+    1. Click "Generate Video" or similar button
+    2. The synthesis process will:
+       - Generate audio from your text using your cloned voice
+       - Synthesize lip movements matching the audio
+       - Render the final video with synchronized audio
+    
+    <Note>
+      Video generation typically takes 2-5 minutes depending on video length and GPU performance.
+    </Note>
+  </Step>
+
+  <Step title="Monitor progress">
+    You can monitor the generation progress:
+    
+    - View real-time progress updates
+    - Check the processing queue
+    - View estimated completion time
+  </Step>
+
+  <Step title="Review and export">
+    Once generation completes:
+    
+    1. Preview your generated video
+    2. Check lip synchronization
+    3. Export the video to your desired location
+    4. Make adjustments if needed
+  </Step>
+</Steps>
+
+## Technical Details
+
+### Docker Services
+
+Duix Avatar uses three Docker services for video generation:
+
+<CardGroup cols={3}>
+  <Card title="ASR Service" icon="ear">
+    **Port:** 10095
+    
+    Automatic Speech Recognition for processing audio input
+  </Card>
+  <Card title="TTS Service" icon="volume">
+    **Port:** 18180
+    
+    Text-to-Speech synthesis using Fish Speech
+  </Card>
+  <Card title="Video Service" icon="film">
+    **Port:** 8383
+    
+    Video synthesis and lip synchronization
+  </Card>
+</CardGroup>
+
+### API Endpoints
+
+For developers who want to integrate Duix Avatar programmatically:
+
+**Voice Synthesis:**
+```bash
+POST http://127.0.0.1:18180/v1/invoke
+```
+
+**Video Synthesis:**
+```bash
+POST http://127.0.0.1:8383/easy/submit
+```
+
+**Progress Query:**
+```bash
+GET http://127.0.0.1:8383/easy/query?code=<task_code>
+```
+
+<Note>
+  For detailed API documentation, see the source code in:
+  - `src/main/service/model.js`
+  - `src/main/service/video.js`
+  - `src/main/service/voice.js`
+</Note>
+
+## Tips for Best Results
+
+### Video Quality
+
+- Use high-resolution training videos (1080p or higher)
+- Ensure good lighting without harsh shadows
+- Face the camera directly
+- Avoid excessive movement during recording
+
+### Voice Quality
+
+- Record in a quiet environment
+- Use a good quality microphone
+- Speak naturally with varied intonation
+- Include different emotions and speech patterns
+
+### Performance Optimization
+
+- Close unnecessary applications to free up GPU memory
+- Process shorter videos for faster results
+- Use the lite version if you have limited GPU resources
+
+## Troubleshooting
+
+### Video generation fails
+
+- Check that all Docker services are running: `docker ps`
+- Verify GPU is available: `nvidia-smi`
+- Check service logs in Docker Desktop or via `docker logs <container_name>`
+- Ensure sufficient disk space is available
+
+### Poor lip synchronization
+
+- Use higher quality training videos
+- Ensure audio is clear and free of background noise
+- Try adjusting synchronization settings
+- Retrain the model with better source material
+
+### Voice doesn't sound natural
+
+- Provide longer, more varied voice samples
+- Ensure clear audio without distortion
+- Adjust voice parameters (temperature, top-P)
+- Retrain with better quality audio
+
+### Services won't start
+
+- Verify NVIDIA drivers are installed
+- Check Docker is running
+- Ensure ports 8383, 10095, and 18180 are not in use
+- Restart Docker services
+
+## Next Steps
+
+Now that you've created your first avatar and video, you can:
+
+<CardGroup cols={2}>
+  <Card title="Create Multiple Avatars" icon="users">
+    Train different avatar models for various use cases
+  </Card>
+  <Card title="Explore API Integration" icon="code">
+    Integrate Duix Avatar into your own applications
+  </Card>
+  <Card title="Optimize Performance" icon="gauge-high">
+    Fine-tune settings for better quality and speed
+  </Card>
+  <Card title="Advanced Features" icon="wand-magic-sparkles">
+    Explore advanced customization options
+  </Card>
+</CardGroup>
+
+## Privacy and Offline Operation
+
+<Note>
+  **Your privacy is protected:** Duix Avatar runs completely offline after installation. All AI processing happens locally on your machine. Your videos, voice data, and avatar models never leave your computer.
+</Note>
+
+## Getting Help
+
+If you encounter issues or have questions:
+
+- Check the [FAQ section](https://github.com/duixcom/Duix.Avatar#faq) in the README
+- Browse [GitHub Issues](https://github.com/duixcom/Duix.Avatar/issues)
+- Contact support at james@duix.com
+- Visit the official website: [www.duix.com](https://www.duix.com)

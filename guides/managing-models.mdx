@@ -1,0 +1,419 @@
+---
+title: Managing Models
+description: Manage avatar models, voice models, and video projects in Duix
+---
+
+## Overview
+
+Duix provides comprehensive model management capabilities for avatars, voices, and video projects. This guide covers all CRUD (Create, Read, Update, Delete) operations.
+
+## Avatar Model Management
+
+Avatar models represent the AI personas that appear in your synthesized videos.
+
+### Create Avatar Model
+
+Create a new avatar from a video file:
+
+```javascript
+addModel(modelName, videoPath)
+```
+
+**IPC Handler:** `model/addModel`
+
+**Parameters:**
+- `modelName`: Display name for the avatar
+- `videoPath`: Full path to the source video file
+
+**Returns:** New model ID
+
+**Service Method:** `addModel()` in `src/main/service/model.js:19`
+
+<Info>
+  This automatically handles video conversion, audio extraction, and voice training. See [Creating an Avatar](/guides/creating-avatar) for details.
+</Info>
+
+### List Avatar Models
+
+Retrieve a paginated list of avatar models:
+
+```javascript
+page({ page, pageSize, name })
+```
+
+**IPC Handler:** `model/page`
+
+**Parameters:**
+- `page`: Page number (1-based)
+- `pageSize`: Number of items per page
+- `name`: Optional search filter (partial match)
+
+**Returns:**
+```javascript
+{
+  total: 42,
+  list: [
+    {
+      id: 1,
+      name: "Avatar Name",
+      video_path: "/full/path/to/video.mp4",
+      audio_path: "/full/path/to/audio.wav",
+      voice_id: 5,
+      created_at: 1234567890
+    },
+    // ...
+  ]
+}
+```
+
+**Service Method:** `page()` in `src/main/service/model.js:59`
+
+<Tip>
+  The returned paths are automatically converted from relative to absolute paths for easy file access.
+</Tip>
+
+### Find Specific Avatar
+
+Retrieve details for a single avatar model:
+
+```javascript
+findModel(modelId)
+```
+
+**IPC Handler:** `model/find`
+
+**Parameters:**
+- `modelId`: Unique identifier for the avatar model
+
+**Returns:** Model object with full paths
+
+**Service Method:** `findModel()` in `src/main/service/model.js:71`
+
+### Count Avatar Models
+
+Get total count of avatar models:
+
+```javascript
+countModel(name)
+```
+
+**IPC Handler:** `model/count`
+
+**Parameters:**
+- `name`: Optional search filter (partial match)
+
+**Returns:** Total count as integer
+
+**Service Method:** `countModel()` in `src/main/service/model.js:99`
+
+### Delete Avatar Model
+
+Remove an avatar model and its associated files:
+
+```javascript
+removeModel(modelId)
+```
+
+**IPC Handler:** `model/remove`
+
+**Parameters:**
+- `modelId`: ID of the model to delete
+
+**Service Method:** `removeModel()` in `src/main/service/model.js:80`
+
+<Warning>
+  This operation:
+  - Deletes the video file from disk
+  - Deletes the audio file from disk
+  - Removes the database entry
+  
+  **This cannot be undone!** Ensure you have backups if needed.
+</Warning>
+
+The deletion process:
+
+<Steps>
+  <Step title="Retrieve Model Data">
+    Fetches model information from database to get file paths
+  </Step>
+  
+  <Step title="Delete Video File">
+    Removes the video file from `assetPath.model` directory if it exists
+  </Step>
+  
+  <Step title="Delete Audio File">
+    Removes the audio file from `assetPath.ttsRoot` directory if it exists
+  </Step>
+  
+  <Step title="Remove Database Entry">
+    Deletes the model record from the `f2f_model` table
+  </Step>
+</Steps>
+
+## Database Schema
+
+Avatar models are stored in the `f2f_model` table:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER | Primary key (auto-increment) |
+| `name` | TEXT | Avatar model name |
+| `video_path` | TEXT | Relative path to video file |
+| `audio_path` | TEXT | Relative path to audio file |
+| `voice_id` | INTEGER | Associated voice model ID |
+| `created_at` | INTEGER | Unix timestamp |
+
+**DAO Methods:** `src/main/dao/f2f-model.js`
+
+## Path Management
+
+### Relative vs. Absolute Paths
+
+Duix uses a hybrid path system:
+
+<CardGroup cols={2}>
+  <Card title="Storage (Relative)" icon="database">
+    Paths stored in database are relative to asset directories
+    
+    Example: `20260314120000.mp4`
+  </Card>
+  
+  <Card title="Runtime (Absolute)" icon="folder">
+    Paths returned by API calls are absolute for direct file access
+    
+    Example: `/home/user/duix/models/20260314120000.mp4`
+  </Card>
+</CardGroup>
+
+### Path Conversion
+
+The service layer automatically converts paths:
+
+```javascript
+// Storage
+const relativeModelPath = path.relative(assetPath.model, modelPath)
+insert({ videoPath: relativeModelPath, ... })
+
+// Retrieval
+return {
+  ...model,
+  video_path: path.join(assetPath.model, model.video_path)
+}
+```
+
+## Video Project Management
+
+Manage video synthesis projects alongside avatar models.
+
+### Create/Update Video Project
+
+```javascript
+saveVideo({ id, model_id, name, text_content, voice_id, audio_path })
+```
+
+**IPC Handler:** `video/save`
+
+**Behavior:**
+- If `id` is provided and exists: Updates existing project
+- Otherwise: Creates new project with `draft` status
+
+**Service Method:** `saveVideo()` in `src/main/service/video.js:63`
+
+### List Video Projects
+
+```javascript
+page({ page, pageSize, name })
+```
+
+**IPC Handler:** `video/page`
+
+Returns paginated videos with:
+- Queue position for `waiting` videos
+- Progress percentage for `pending` videos
+- Full file paths for completed videos
+
+**Service Method:** `page()` in `src/main/service/video.js:29`
+
+### Find Video Project
+
+```javascript
+findVideo(videoId)
+```
+
+**IPC Handler:** `video/find`
+
+Retrieves complete video project details including status and file paths.
+
+**Service Method:** `findVideo()` in `src/main/service/video.js:51`
+
+### Modify Video Project
+
+```javascript
+modify(video)
+```
+
+**IPC Handler:** `video/modify`
+
+Update any video project fields. Accepts a video object with:
+- `id`: Required, identifies the video to update
+- Any other fields to modify
+
+**Service Method:** `modify()` in `src/main/service/video.js:273`
+
+### Delete Video Project
+
+```javascript
+removeVideo(videoId)
+```
+
+**IPC Handler:** `video/remove`
+
+Deletes:
+- Synthesized video file (if exists)
+- Generated audio file (if exists)
+- Database entry
+
+**Service Method:** `removeVideo()` in `src/main/service/video.js:226`
+
+<Warning>
+  Deletion is permanent and cannot be undone. Both the video and audio files are removed from disk.
+</Warning>
+
+## Search and Filtering
+
+Both avatar models and video projects support name-based search:
+
+```javascript
+// Search avatars
+page({ page: 1, pageSize: 10, name: 'Sarah' })
+
+// Search videos
+page({ page: 1, pageSize: 20, name: 'Tutorial' })
+```
+
+Search performs partial matching using SQL `LIKE '%{name}%'` pattern.
+
+## File System Organization
+
+Duix organizes files in structured directories:
+
+```
+assetPath.model/          # Avatar video files
+  20260314120000.mp4
+  20260314120001.mp4
+  ...
+
+assetPath.ttsTrain/       # Extracted training audio
+  20260314120000.wav
+  20260314120001.wav
+  ...
+
+assetPath.ttsProduct/     # Generated synthesis audio
+  uuid-1234.wav
+  uuid-5678.wav
+  ...
+```
+
+<Info>
+  All directories are created automatically if they don't exist, with `recursive: true` option.
+</Info>
+
+## Best Practices
+
+### 1. Naming Conventions
+
+- Use descriptive avatar names for easy identification
+- Include person's name or character type
+- Avoid special characters that might cause file system issues
+
+### 2. Pagination
+
+- Use reasonable page sizes (10-50 items)
+- Cache total counts to reduce database queries
+- Implement infinite scrolling for better UX
+
+### 3. Search Performance
+
+- Keep search terms short for faster queries
+- Consider indexing the `name` column for large datasets
+- Use exact ID lookups when possible
+
+### 4. Deletion Safety
+
+- Always confirm before deletion (UI confirmation dialog)
+- Consider implementing soft deletes for important models
+- Maintain backups of critical avatar models
+
+### 5. File Management
+
+- Monitor disk space usage in asset directories
+- Implement cleanup routines for orphaned files
+- Use the relative path system for portability
+
+## Error Handling
+
+All management operations include error handling:
+
+```javascript
+// File existence checks
+if (fs.existsSync(videoPath)) {
+  fs.unlinkSync(videoPath)
+}
+
+// Database operations with logging
+log.debug('~ removeModel ~ modelId:', modelId)
+```
+
+<Tip>
+  Check application logs for detailed error messages and debugging information.
+</Tip>
+
+## Integration Examples
+
+### Complete Workflow
+
+<Steps>
+  <Step title="Create Avatar">
+    ```javascript
+    const modelId = await ipcRenderer.invoke('model/addModel', 
+      'John Doe', '/path/to/video.mp4')
+    ```
+  </Step>
+  
+  <Step title="List Avatars">
+    ```javascript
+    const { total, list } = await ipcRenderer.invoke('model/page', 
+      { page: 1, pageSize: 10, name: '' })
+    ```
+  </Step>
+  
+  <Step title="Create Video Project">
+    ```javascript
+    const videoId = await ipcRenderer.invoke('video/save', {
+      model_id: modelId,
+      name: 'Welcome Video',
+      text_content: 'Hello and welcome!',
+      voice_id: list[0].voice_id
+    })
+    ```
+  </Step>
+  
+  <Step title="Synthesize Video">
+    ```javascript
+    await ipcRenderer.invoke('video/make', videoId)
+    ```
+  </Step>
+  
+  <Step title="Monitor Progress">
+    ```javascript
+    const video = await ipcRenderer.invoke('video/find', videoId)
+    console.log(video.status, video.progress)
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+- [Learn about avatar creation](/guides/creating-avatar)
+- [Explore voice cloning options](/guides/voice-cloning)
+- [Master video synthesis](/guides/video-synthesis)

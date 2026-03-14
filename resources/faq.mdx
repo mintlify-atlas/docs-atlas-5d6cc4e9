@@ -1,0 +1,251 @@
+---
+title: 'Frequently Asked Questions'
+description: 'Common questions and answers about Duix Avatar'
+icon: 'circle-question'
+---
+
+## Self-Check Steps Before Asking Questions
+
+Before submitting a question or issue, please follow these self-check steps to troubleshoot common problems:
+
+<AccordionGroup>
+  <Accordion title="1. Check Docker Services Status">
+    Verify that all three Docker services are in **Running** status:
+    
+    - `Duix.Avatar-asr` (ASR service)
+    - `Duix.Avatar-tts` (TTS service)
+    - `Duix.Avatar-gen-video` (Video generation service)
+    
+    Open Docker Desktop and ensure all services show as running. If any service is stopped or restarting, check the logs for errors.
+    
+    <Info>
+      For the lite version, only the `Duix.Avatar-gen-video` service is required.
+    </Info>
+  </Accordion>
+
+  <Accordion title="2. Verify NVIDIA GPU and Drivers">
+    Confirm that your machine has an NVIDIA graphics card with properly installed drivers.
+    
+    All computing power for this project runs locally. The three services won't start without an NVIDIA graphics card or proper drivers.
+    
+    **To verify:**
+    - Windows: Check Device Manager for NVIDIA GPU
+    - Linux: Run `nvidia-smi` command to display GPU information
+    
+    <Warning>
+      AMD or Intel integrated graphics are **not supported**. An NVIDIA GPU is required.
+    </Warning>
+    
+    Download drivers: [https://www.nvidia.cn/drivers/lookup/](https://www.nvidia.cn/drivers/lookup/)
+  </Accordion>
+
+  <Accordion title="3. Update to Latest Version">
+    Ensure both server and client are updated to the latest version.
+    
+    The project is newly open-sourced, the community is very active, and updates are frequent. Your issue might have been resolved in a new version.
+    
+    **Server update:**
+    ```bash
+    cd /deploy
+    docker-compose up -d
+    ```
+    
+    **Client update:**
+    - Download the latest release from [GitHub Releases](https://github.com/duixcom/Duix.Avatar/releases)
+    - Reinstall the application
+  </Accordion>
+
+  <Accordion title="4. Check GitHub Issues">
+    [GitHub Issues](https://github.com/duixcom/Duix.Avatar/issues) are continuously updated with resolved problems.
+    
+    Issues are being resolved and closed daily. Check frequently - your problem might already be solved!
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Question Template
+
+When submitting a question or issue, please provide the following information:
+
+### 1. Problem Description
+
+Describe the reproduction steps in detail, with screenshots if possible.
+
+**Include:**
+- What you were trying to do
+- What actually happened
+- Expected vs actual behavior
+- Screenshots or screen recordings
+
+### 2. Error Logs
+
+<AccordionGroup>
+  <Accordion title="How to Get Client Logs">
+    1. Open the Duix Avatar application
+    2. Click on the menu or settings icon
+    3. Navigate to "Help" or "Logs"
+    4. Copy the log output
+    
+    The logs contain valuable debugging information about errors and warnings.
+  </Accordion>
+
+  <Accordion title="How to Get Server Logs">
+    **Docker Desktop:**
+    1. Open Docker Desktop
+    2. Click on the service name (e.g., `Duix.Avatar-asr`)
+    3. View the logs in the details panel
+    4. Use the "Copy" button to copy logs
+    
+    **Command Line:**
+    ```bash
+    # View logs for a specific service
+    docker logs duix-avatar-asr
+    docker logs duix-avatar-tts
+    docker logs duix-avatar-gen-video
+    
+    # Follow logs in real-time
+    docker logs -f duix-avatar-asr
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Common Questions
+
+<AccordionGroup>
+  <Accordion title="What hardware do I need to run Duix Avatar?">
+    **Minimum Requirements:**
+    - **GPU:** NVIDIA graphics card (RTX series recommended)
+    - **Memory:** 32GB RAM (necessary)
+    - **CPU:** Intel Core i5-13400F or better
+    - **Storage:** 100GB+ free space
+    
+    **Recommended Configuration:**
+    - **GPU:** NVIDIA RTX 4070 or better
+    - **Memory:** 32GB or more
+    - **CPU:** 13th Gen Intel Core i5-13400F
+    - **Storage:** 100GB+ on C drive (Windows) or system drive (Linux)
+    
+    <Info>
+      NVIDIA 50 series GPUs (5090) are now supported with CUDA 12.8.
+    </Info>
+  </Accordion>
+
+  <Accordion title="What languages are supported for scripts?">
+    Duix Avatar supports **eight languages** for text-to-speech:
+    
+    - English
+    - Japanese
+    - Korean
+    - Chinese
+    - French
+    - German
+    - Arabic
+    - Spanish
+  </Accordion>
+
+  <Accordion title="Can I use this for commercial projects?">
+    **Yes**, with conditions:
+    
+    - Free commercial use is allowed for most users
+    - If your enterprise has **>100,000 Monthly Active Users** OR **>$10M annual revenue**, you must sign a commercial license agreement
+    
+    See the [License](/resources/license) page for full details.
+  </Accordion>
+
+  <Accordion title="Does Duix Avatar require an internet connection?">
+    **No!** Duix Avatar is a fully offline application.
+    
+    - All AI processing happens locally on your machine
+    - No data is sent to external servers
+    - Your privacy is protected
+    
+    <Info>
+      You only need internet to download the initial Docker images and client application.
+    </Info>
+  </Accordion>
+
+  <Accordion title="What video format should I use for avatar training?">
+    For creating a custom avatar model, your training video must:
+    
+    - **Contain audio** with the person speaking
+    - Be clear and well-lit
+    - Show the person's face clearly
+    - Include natural speech (the audio is used for voice cloning)
+    
+    <Warning>
+      Videos without audio or with background music only will fail during training.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="How long does it take to train a new avatar?">
+    Training time depends on:
+    
+    - **Video length:** Longer videos take more time
+    - **GPU performance:** RTX 4070 or better recommended
+    - **System resources:** 32GB RAM required
+    
+    Typical training time: **10-30 minutes** for a 1-2 minute training video.
+  </Accordion>
+
+  <Accordion title="Can I use AMD or Intel GPUs?">
+    **No.** Duix Avatar requires an **NVIDIA GPU** with CUDA support.
+    
+    - AMD GPUs are not supported
+    - Intel integrated graphics are not supported
+    - Apple Silicon (M1/M2) is not supported
+    
+    Only NVIDIA GPUs with proper drivers will work.
+  </Accordion>
+
+  <Accordion title="What's the difference between the full and lite versions?">
+    **Full Version:**
+    - Three Docker services (ASR, TTS, Video Generation)
+    - Complete voice cloning and synthesis
+    - ~70GB download size
+    
+    **Lite Version:**
+    - Single Docker service (Video Generation only)
+    - Requires external TTS/ASR services
+    - Smaller download size
+    - Use `docker-compose-lite.yml`
+  </Accordion>
+
+  <Accordion title="How do I get support?">
+    **Community Support:**
+    - [GitHub Issues](https://github.com/duixcom/Duix.Avatar/issues)
+    - Check existing issues before creating new ones
+    
+    **Commercial Support:**
+    - For API services with SLA guarantees, visit [duix.com](https://duix.com)
+    - Email: james@duix.com
+    
+    **Before asking:**
+    - Complete the [self-check steps](#self-check-steps-before-asking-questions)
+    - Search existing GitHub issues
+    - Provide logs and detailed error descriptions
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Need More Help?
+
+If you can't find an answer to your question:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Search existing issues or create a new one
+  </Card>
+  <Card title="Troubleshooting Guide" icon="wrench" href="/resources/troubleshooting">
+    Step-by-step solutions for common problems
+  </Card>
+  <Card title="Email Support" icon="envelope" href="mailto:james@duix.com">
+    Contact the team directly
+  </Card>
+  <Card title="Official Website" icon="globe" href="https://duix.com">
+    Visit for API services and more resources
+  </Card>
+</CardGroup>

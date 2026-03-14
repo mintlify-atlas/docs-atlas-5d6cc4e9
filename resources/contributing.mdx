@@ -1,0 +1,566 @@
+---
+title: 'Contributing Guide'
+description: 'How to contribute to the Duix Avatar project'
+icon: 'code-pull-request'
+---
+
+## Welcome Contributors!
+
+Thank you for your interest in contributing to **Duix Avatar**! This open-source project was created to democratize digital human technology and make it accessible to everyone. We welcome contributions from developers of all skill levels.
+
+<Info>
+  Duix Avatar is developed by [Duix.com](https://duix.com) and maintained by a community of contributors. Your contributions help make AI avatar technology available to everyone.
+</Info>
+
+---
+
+## How to Contribute
+
+There are many ways to contribute to Duix Avatar:
+
+<CardGroup cols={2}>
+  <Card title="Report Bugs" icon="bug" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Found an issue? Report it on GitHub Issues
+  </Card>
+  
+  <Card title="Suggest Features" icon="lightbulb" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Have an idea? Share it with the community
+  </Card>
+  
+  <Card title="Fix Issues" icon="wrench" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Pick an issue and submit a pull request
+  </Card>
+  
+  <Card title="Improve Docs" icon="book" href="https://github.com/duixcom/Duix.Avatar">
+    Help improve documentation and guides
+  </Card>
+  
+  <Card title="Share Knowledge" icon="comments" href="https://github.com/duixcom/Duix.Avatar/discussions">
+    Answer questions and help other users
+  </Card>
+  
+  <Card title="Translate" icon="language">
+    Help translate the application to more languages
+  </Card>
+</CardGroup>
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Before contributing code, ensure you have:
+
+<Steps>
+  <Step title="Development Environment">
+    - **Node.js 18** or higher
+    - **Git** for version control
+    - **Code editor** (VS Code recommended)
+    - **Docker** and **Docker Compose** installed
+    - **NVIDIA GPU** with proper drivers for testing
+  </Step>
+  
+  <Step title="GitHub Account">
+    - Create a [GitHub account](https://github.com) if you don't have one
+    - Set up [SSH keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) (recommended)
+    - Configure Git with your name and email:
+    
+    ```bash
+    git config --global user.name "Your Name"
+    git config --global user.email "your.email@example.com"
+    ```
+  </Step>
+  
+  <Step title="Fork the Repository">
+    1. Visit [github.com/duixcom/Duix.Avatar](https://github.com/duixcom/Duix.Avatar)
+    2. Click the "Fork" button in the top-right corner
+    3. Clone your fork locally:
+    
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/Duix.Avatar.git
+    cd Duix.Avatar
+    ```
+  </Step>
+  
+  <Step title="Set Up Development">
+    ```bash
+    # Install dependencies
+    npm install
+    
+    # Set up Docker services
+    cd deploy
+    docker-compose up -d
+    
+    # Return to project root
+    cd ..
+    
+    # Start development
+    npm run dev
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Development Workflow
+
+### 1. Create a Branch
+
+Always create a new branch for your work:
+
+```bash
+# Update your fork
+git checkout main
+git pull origin main
+
+# Create a new branch
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/issue-number-description
+```
+
+**Branch naming conventions:**
+- `feature/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation updates
+- `refactor/` - Code refactoring
+- `test/` - Test additions or updates
+
+### 2. Make Your Changes
+
+<AccordionGroup>
+  <Accordion title="Code Guidelines">
+    - Follow existing code style and formatting
+    - Write clear, descriptive variable and function names
+    - Add comments for complex logic
+    - Keep functions small and focused
+    - Avoid unnecessary dependencies
+  </Accordion>
+
+  <Accordion title="Testing Your Changes">
+    Before submitting:
+    
+    1. **Build the application:**
+    ```bash
+    npm run build
+    ```
+    
+    2. **Test locally:**
+    - Test the feature/fix works as expected
+    - Verify no new bugs are introduced
+    - Test on both Windows and Linux if possible
+    
+    3. **Check for errors:**
+    - Review client logs
+    - Check Docker service logs
+    - Test with different GPU configurations if applicable
+  </Accordion>
+
+  <Accordion title="Documentation Updates">
+    If your change affects user-facing functionality:
+    
+    - Update relevant README sections
+    - Add/update code comments
+    - Document new features or API changes
+    - Update configuration examples if needed
+  </Accordion>
+</AccordionGroup>
+
+### 3. Commit Your Changes
+
+```bash
+# Stage your changes
+git add .
+
+# Commit with a clear message
+git commit -m "feat: add support for custom avatar backgrounds"
+# or
+git commit -m "fix: resolve issue #123 - Docker service connection error"
+```
+
+**Commit message format:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style/formatting
+- `refactor:` - Code refactoring
+- `test:` - Test updates
+- `chore:` - Maintenance tasks
+
+### 4. Push and Create Pull Request
+
+```bash
+# Push to your fork
+git push origin feature/your-feature-name
+```
+
+Then:
+
+1. Go to [github.com/duixcom/Duix.Avatar](https://github.com/duixcom/Duix.Avatar)
+2. Click "Pull requests" → "New pull request"
+3. Click "compare across forks"
+4. Select your fork and branch
+5. Fill in the PR template:
+   - Clear description of changes
+   - Related issue numbers
+   - Testing performed
+   - Screenshots/videos if applicable
+
+<Info>
+  Pull requests are reviewed by maintainers. Be patient and responsive to feedback.
+</Info>
+
+---
+
+## Reporting Issues
+
+### Before Reporting
+
+<Steps>
+  <Step title="Search Existing Issues">
+    Check if the issue already exists:
+    - [Open Issues](https://github.com/duixcom/Duix.Avatar/issues?q=is%3Aissue+is%3Aopen)
+    - [Closed Issues](https://github.com/duixcom/Duix.Avatar/issues?q=is%3Aissue+is%3Aclosed)
+  </Step>
+  
+  <Step title="Complete Self-Check">
+    Follow the [FAQ self-check steps](/resources/faq#self-check-steps-before-asking-questions):
+    - Verify Docker services are running
+    - Confirm GPU and drivers are working
+    - Update to latest version
+  </Step>
+  
+  <Step title="Gather Information">
+    Collect:
+    - Operating system and version
+    - GPU model and driver version
+    - Duix Avatar version
+    - Docker service status
+    - Error logs (client and server)
+    - Steps to reproduce
+  </Step>
+</Steps>
+
+### Creating a Good Issue
+
+<Tabs>
+  <Tab title="Bug Report">
+    **Title:** Clear, specific description
+    
+    **Template:**
+    ```markdown
+    ## Description
+    Brief description of the bug
+    
+    ## Steps to Reproduce
+    1. Step one
+    2. Step two
+    3. Step three
+    
+    ## Expected Behavior
+    What should happen
+    
+    ## Actual Behavior
+    What actually happens
+    
+    ## Environment
+    - OS: Windows 11 / Ubuntu 22.04
+    - GPU: RTX 4070
+    - Driver: 536.23
+    - Duix Avatar version: 1.2.3
+    - RAM: 32GB
+    
+    ## Logs
+    ```
+    Paste relevant error logs here
+    ```
+    
+    ## Screenshots
+    [If applicable]
+    ```
+  </Tab>
+  
+  <Tab title="Feature Request">
+    **Title:** Concise feature description
+    
+    **Template:**
+    ```markdown
+    ## Feature Description
+    Clear description of the proposed feature
+    
+    ## Use Case
+    Why is this feature needed? Who benefits?
+    
+    ## Proposed Solution
+    How you envision this working
+    
+    ## Alternatives Considered
+    Other approaches you've thought about
+    
+    ## Additional Context
+    Any other relevant information
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Community Guidelines
+
+### Code of Conduct
+
+<AccordionGroup>
+  <Accordion title="Be Respectful">
+    - Treat all community members with respect
+    - Be patient with newcomers
+    - Provide constructive feedback
+    - Avoid discriminatory or offensive language
+  </Accordion>
+
+  <Accordion title="Be Collaborative">
+    - Share knowledge and help others
+    - Credit others for their work
+    - Be open to feedback and suggestions
+    - Work together to solve problems
+  </Accordion>
+
+  <Accordion title="Be Professional">
+    - Stay on topic in discussions
+    - Avoid spam or self-promotion
+    - Respect maintainers' time
+    - Follow project guidelines
+  </Accordion>
+</AccordionGroup>
+
+### Communication Channels
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/duixcom/Duix.Avatar/issues">
+    Bug reports, feature requests, and task tracking
+  </Card>
+  
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/duixcom/Duix.Avatar/discussions">
+    General questions, ideas, and community chat
+  </Card>
+  
+  <Card title="Email" icon="envelope" href="mailto:james@duix.com">
+    Direct contact for sensitive issues
+  </Card>
+  
+  <Card title="Website" icon="globe" href="https://duix.com">
+    Official resources and commercial services
+  </Card>
+</CardGroup>
+
+---
+
+## Technical Architecture
+
+### Project Structure
+
+```
+Duix.Avatar/
+├── src/
+│   ├── main/
+│   │   ├── service/
+│   │   │   ├── model.js      # Model training APIs
+│   │   │   ├── video.js      # Video synthesis APIs
+│   │   │   └── voice.js      # Voice/TTS APIs
+│   │   └── ...
+│   ├── renderer/             # Client UI
+│   └── ...
+├── deploy/
+│   ├── docker-compose.yml        # Full version
+│   ├── docker-compose-lite.yml   # Lite version
+│   └── docker-compose-linux.yml  # Linux version
+├── README.md
+└── package.json
+```
+
+### Key Components
+
+<Tabs>
+  <Tab title="Client Application">
+    Built with Electron and Node.js:
+    - Desktop application (Windows/Linux)
+    - User interface for avatar creation
+    - Video project management
+    - Communicates with Docker services
+  </Tab>
+  
+  <Tab title="Docker Services">
+    Three microservices:
+    
+    1. **Duix.Avatar-asr** (ASR - Automatic Speech Recognition)
+       - Port: Internal
+       - Based on fun-asr
+       - Converts speech to text
+    
+    2. **Duix.Avatar-tts** (TTS - Text-to-Speech)
+       - Port: 18180
+       - Based on fish-speech-ziming
+       - Voice cloning and synthesis
+    
+    3. **Duix.Avatar-gen-video** (Video Generation)
+       - Port: 8383
+       - Core avatar video synthesis
+       - Lip-sync and video processing
+  </Tab>
+  
+  <Tab title="APIs">
+    RESTful APIs exposed by Docker services:
+    
+    - Model training API
+    - Audio synthesis API
+    - Video synthesis API
+    - Progress query API
+    
+    See [Open APIs documentation](https://github.com/duixcom/Duix.Avatar#open-apis)
+  </Tab>
+</Tabs>
+
+### Technology Stack
+
+- **Frontend:** Electron, HTML/CSS/JavaScript
+- **Backend:** Node.js
+- **AI Services:** Python, PyTorch, CUDA
+- **Containerization:** Docker, Docker Compose
+- **ASR:** fun-asr
+- **TTS:** fish-speech-ziming
+
+---
+
+## Development Tips
+
+<AccordionGroup>
+  <Accordion title="Working with Docker Services">
+    **View service logs:**
+    ```bash
+    docker logs duix-avatar-asr -f
+    docker logs duix-avatar-tts -f
+    docker logs duix-avatar-gen-video -f
+    ```
+    
+    **Restart a service:**
+    ```bash
+    docker-compose restart duix-avatar-asr
+    ```
+    
+    **Rebuild services:**
+    ```bash
+    docker-compose down
+    docker-compose up -d --build
+    ```
+  </Accordion>
+
+  <Accordion title="Client Development">
+    **Run in development mode:**
+    ```bash
+    npm run dev
+    ```
+    
+    **Build for production:**
+    ```bash
+    npm run build
+    ```
+    
+    **Access client logs:**
+    Check the application's log directory (varies by OS)
+  </Accordion>
+
+  <Accordion title="Testing API Endpoints">
+    Use curl or Postman to test APIs:
+    
+    ```bash
+    # Test TTS service
+    curl -X POST http://127.0.0.1:18180/v1/invoke \
+      -H "Content-Type: application/json" \
+      -d '{...}'
+    
+    # Test video generation
+    curl -X POST http://127.0.0.1:8383/easy/submit \
+      -H "Content-Type: application/json" \
+      -d '{...}'
+    ```
+    
+    See [Open APIs](https://github.com/duixcom/Duix.Avatar#open-apis) for full API documentation.
+  </Accordion>
+
+  <Accordion title="Debugging Tips">
+    - Use browser DevTools for client debugging (Ctrl+Shift+I)
+    - Check Docker service logs for backend issues
+    - Monitor GPU usage with `nvidia-smi`
+    - Test with different hardware configurations
+    - Use verbose logging when available
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## License Considerations
+
+<Warning>
+  All contributions must comply with the [DUIX.COM Community License Agreement](/resources/license).
+</Warning>
+
+**Key points:**
+- You retain copyright to your contributions
+- Contributions are licensed under the same terms as the project
+- By contributing, you agree to the license terms
+- Commercial use restrictions apply (see License page)
+
+**Attribution:**
+- Significant contributions may be acknowledged in release notes
+- Contributors are listed in GitHub's contributor graph
+- Duix.com may showcase community contributions (with permission)
+
+---
+
+## Recognition
+
+We appreciate all contributions, big and small!
+
+<CardGroup cols={3}>
+  <Card title="Contributors" icon="users">
+    Listed in GitHub contributor graph
+  </Card>
+  
+  <Card title="Release Notes" icon="bullhorn">
+    Significant contributions acknowledged
+  </Card>
+  
+  <Card title="Community" icon="heart">
+    Building the future together
+  </Card>
+</CardGroup>
+
+---
+
+## Need Help?
+
+If you have questions about contributing:
+
+<Steps>
+  <Step title="Check Documentation">
+    Review this guide and the main [README](https://github.com/duixcom/Duix.Avatar)
+  </Step>
+  
+  <Step title="Ask the Community">
+    Post in [GitHub Discussions](https://github.com/duixcom/Duix.Avatar/discussions)
+  </Step>
+  
+  <Step title="Contact Maintainers">
+    For specific questions, email james@duix.com
+  </Step>
+</Steps>
+
+---
+
+## Thank You!
+
+Your contributions help make AI avatar technology accessible to everyone. Together, we're breaking down technological barriers and democratizing digital human creation.
+
+<Info>
+  **Ready to contribute?** Start by browsing [open issues](https://github.com/duixcom/Duix.Avatar/issues) or forking the repository!
+</Info>

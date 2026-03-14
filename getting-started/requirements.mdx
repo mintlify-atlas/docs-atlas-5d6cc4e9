@@ -1,0 +1,144 @@
+---
+title: System Requirements
+description: Hardware and software requirements for running Duix Avatar
+---
+
+Before installing Duix Avatar, ensure your system meets the following requirements. Duix Avatar supports both Windows and Linux (Ubuntu 22.04) operating systems.
+
+## Operating System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Windows" icon="windows">
+    Windows 10 19042.1526 or higher
+  </Card>
+  <Card title="Linux" icon="linux">
+    Ubuntu 22.04 Desktop (kernel 6.8.0-52-generic)
+  </Card>
+</CardGroup>
+
+<Note>
+  While Duix Avatar has been fully tested on Ubuntu 22.04, it should theoretically work on other desktop Linux distributions.
+</Note>
+
+## Hardware Requirements
+
+### CPU
+- **Recommended:** 13th Generation Intel Core i5-13400F or equivalent
+- Multi-core processor for optimal performance
+
+### Memory (RAM)
+- **Minimum:** 32GB RAM (required)
+- More memory improves video synthesis performance
+
+### Graphics Card (GPU)
+- **Required:** NVIDIA GPU with proper drivers installed
+- **Recommended:** NVIDIA RTX 4070 or higher
+- **Supported:** RTX 30 series, RTX 40 series, RTX 50 series (with special configuration)
+
+<Warning>
+  An NVIDIA graphics card is **mandatory**. Duix Avatar requires GPU acceleration for AI model inference and will not run without proper NVIDIA drivers.
+</Warning>
+
+### Storage Requirements
+
+#### Windows
+- **D Drive:** 30GB+ free space (for digital human and project data)
+- **C Drive:** 100GB+ free space (for Docker images and service files)
+  - If C Drive has less than 100GB, you can configure Docker to use a different location after installation
+
+#### Linux
+- **Total:** 100GB+ free disk space
+
+<Note>
+  Docker image downloads will consume approximately 70GB of network traffic. Ensure you're on a stable WiFi connection during installation.
+</Note>
+
+## Software Dependencies
+
+### Node.js
+- **Version:** Node.js 18
+- Required for running the client application
+
+### Docker
+- Docker Engine (latest stable version)
+- Docker Compose
+- For Windows: Docker Desktop with WSL 2 backend
+
+### NVIDIA Drivers
+
+Proper NVIDIA GPU drivers must be installed before running Duix Avatar.
+
+<Card title="Download NVIDIA Drivers" icon="download" href="https://www.nvidia.cn/drivers/lookup/">
+  Visit NVIDIA's official driver download page to get the latest drivers for your GPU
+</Card>
+
+#### Verifying Driver Installation
+
+After installing NVIDIA drivers, verify the installation:
+
+**Windows:**
+```bash
+nvidia-smi
+```
+
+**Linux:**
+```bash
+nvidia-smi
+```
+
+If the command displays your GPU information, the drivers are correctly installed.
+
+### Docker Images
+
+Duix Avatar uses the following Docker images:
+
+- `guiji2025/fun-asr` - Automatic Speech Recognition
+- `guiji2025/fish-speech-ziming` - Text-to-Speech synthesis
+- `guiji2025/duix.avatar` - Video synthesis engine
+
+<Note>
+  These images will be automatically pulled during the installation process. You don't need to download them manually.
+</Note>
+
+## Network Requirements
+
+- **Initial Setup:** Internet connection required for:
+  - Downloading Docker images (~70GB)
+  - Installing dependencies
+  - Downloading the client application
+
+- **Runtime:** Fully offline operation
+  - No internet connection required after installation
+  - All AI processing happens locally
+  - Your data never leaves your machine
+
+## Special Configurations
+
+### NVIDIA 50 Series Graphics Cards
+
+If you have an NVIDIA RTX 50 series GPU (tested on RTX 5090), you'll need to use a special Docker Compose configuration:
+
+- Use `docker-compose-5090.yml` instead of the standard configuration
+- This configuration uses the official preview version of PyTorch
+- Also compatible with RTX 30/40 series GPUs running CUDA 12.8
+
+### Lite Version
+
+For systems with limited resources, Duix Avatar offers a lite version:
+
+- Single Docker service instead of three
+- Reduced functionality but lower resource requirements
+- Suitable for testing and evaluation
+
+## Next Steps
+
+Once you've verified your system meets these requirements, proceed to installation:
+
+<CardGroup cols={2}>
+  <Card title="Windows Installation" icon="windows" href="/getting-started/windows-installation">
+    Install Duix Avatar on Windows 10/11
+  </Card>
+  <Card title="Linux Installation" icon="linux" href="/getting-started/linux-installation">
+    Install Duix Avatar on Ubuntu 22.04
+  </Card>
+</CardGroup>
